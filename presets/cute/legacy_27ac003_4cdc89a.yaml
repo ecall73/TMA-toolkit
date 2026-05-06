@@ -1,0 +1,401 @@
+version: 2
+name: cute_tma_legacy_27ac003_4cdc89a
+
+instrumentation:
+  baseline_ref: origin/master
+  repo_root: XSAI/CUTE
+  policy:
+    accumulate_only: true
+  cleanup:
+    mode: remove_added_vs_baseline
+    remove_all_added: true
+
+  sites:
+    - id: tc_l2
+      file: src/main/scala/TaskController.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: taskcontroller_tma_counters
+      anchor_regex: '^\s*val issueFire = decodedFifo\.io\.deq\.fire\s*$'
+      position: after
+      indent: '  '
+
+    - id: sb_l3
+      file: src/main/scala/Scoreboard.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: scoreboard_tma_counters
+      anchor_regex: '^\s*io\.query\.req\.ready := !io\.query\.req\.valid \|\| canIssueReq\(io\.query\.req\.bits\)\s*$'
+      position: after
+      indent: '  '
+
+    - id: aml_l3
+      file: src/main/scala/AMemoryLoader.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: amemoryloader_tma_counters
+      anchor_regex: '^\s*val memoryload_state = RegInit\(s_load_idle\)\s*$'
+      position: after
+      indent: '    '
+
+    - id: bml_l3
+      file: src/main/scala/BMemoryLoader.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: bmemoryloader_tma_counters
+      anchor_regex: '^\s*val Tensor_Block_BaseAddr = Reg\(UInt\(MMUAddrWidth\.W\)\).*$'
+      position: after
+      indent: '    '
+
+    - id: cml_l3
+      file: src/main/scala/CMemoryLoader.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: cmemoryloader_tma_counters
+      anchor_regex: '^\s*val Is_RepeatRowLoad = RegInit\(false\.B\)\s*$'
+      position: after
+      indent: '    '
+
+    - id: adc_l3
+      file: src/main/scala/ADataController.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: adatactrl_tma_counters
+      anchor_regex: '^\s*val MatrixRegDataHoldValid = RegInit\(false\.B\).*$'
+      position: after
+      indent: '    '
+
+    - id: bdc_l3
+      file: src/main/scala/BDataController.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: bdatactrl_tma_counters
+      anchor_regex: '^\s*val MatrixRegDataHoldValid = RegInit\(false\.B\).*$'
+      position: after
+      indent: '    '
+
+    - id: cdc_l3
+      file: src/main/scala/CDataController.scala
+      ensure_imports:
+        - utility.XSPerfAccumulate
+      block_id: cdatactrl_tma_counters
+      anchor_regex: '^\s*val ReadMatrixRegDataHoldValid = RegInit\(false\.B\).*$'
+      position: after
+      indent: '    '
+
+  points:
+    - name: CUTE_L0_TC_HeadValidSlot
+      site: tc_l2
+      expr: 'headValid'
+    - name: CUTE_L0_TC_IssueFire
+      site: tc_l2
+      expr: 'issueFire'
+    - name: CUTE_L2_TC_ScoreboardBlocked
+      site: tc_l2
+      expr: '(headValid && !issueFire) && scoreboardReqValid && !scoreboardReqReady'
+    - name: CUTE_L2_TC_ReleasePendingStore
+      site: tc_l2
+      expr: '(headValid && !issueFire) && isRelease && !releaseReady'
+    - name: CUTE_L2_TC_AMLNotReady
+      site: tc_l2
+      expr: '(headValid && !issueFire) && ((isLoad && needA && !io.AML_MicroTask_Config.MicroTaskReady) || (isMzeroTr && !io.AML_MicroTask_Config.MicroTaskReady))'
+    - name: CUTE_L2_TC_BMLNotReady
+      site: tc_l2
+      expr: '(headValid && !issueFire) && (isLoad && needB && !io.BML_MicroTask_Config.MicroTaskReady)'
+    - name: CUTE_L2_TC_CMLNotReady
+      site: tc_l2
+      expr: '(headValid && !issueFire) && ((isLoad && needC && !io.CML_MicroTask_Config.MicroTaskReady) || (isStore && !io.CML_MicroTask_Config.MicroTaskReady) || (isMzeroAcc && !io.CML_MicroTask_Config.MicroTaskReady))'
+    - name: CUTE_L2_TC_DCNotReady
+      site: tc_l2
+      expr: '(headValid && !issueFire) && isMma && (!io.ADC_MicroTask_Config.MicroTaskReady || !io.BDC_MicroTask_Config.MicroTaskReady || !io.CDC_MicroTask_Config.MicroTaskReady)'
+
+    - name: CUTE_L3_SB_Dep_SrcNotReady
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && !(regReady(io.query.req.bits.src1) && regReady(io.query.req.bits.src2) && regReady(io.query.req.bits.src3))'
+    - name: CUTE_L3_SB_Dep_DestBusy
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && io.query.req.bits.dest.valid && regBusy(io.query.req.bits.dest.bits)'
+    - name: CUTE_L3_SB_Dep_DestHasConsumers
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && io.query.req.bits.dest.valid && hasPendingReaders(io.query.req.bits.dest.bits, io.query.req.bits.fuType.asUInt)'
+    - name: CUTE_L3_SB_Dep_CMLStoreConsumer
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && (io.query.req.bits.fuType === ScoreboardFuType.CML) && !io.query.req.bits.dest.valid && hasPendingReaders(io.query.req.bits.src1.bits, cmlFuIdConst)'
+    - name: CUTE_L3_SB_Res_AMLBusy
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && (io.query.req.bits.fuType === ScoreboardFuType.AML) && !fuFree(ScoreboardFuType.AML)'
+    - name: CUTE_L3_SB_Res_BMLBusy
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && (io.query.req.bits.fuType === ScoreboardFuType.BML) && !fuFree(ScoreboardFuType.BML)'
+    - name: CUTE_L3_SB_Res_CMLLoadBusy
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && (io.query.req.bits.fuType === ScoreboardFuType.CML) && io.query.req.bits.dest.valid && !fuFree(ScoreboardFuType.CML)'
+    - name: CUTE_L3_SB_Res_CMLStoreBusy
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && (io.query.req.bits.fuType === ScoreboardFuType.CML) && !io.query.req.bits.dest.valid && !fuFree(ScoreboardFuType.CML)'
+    - name: CUTE_L3_SB_Res_ComputeBusy
+      site: sb_l3
+      expr: '(io.query.req.valid && !io.query.req.ready) && (io.query.req.bits.fuType === ScoreboardFuType.Compute) && !fuFree(ScoreboardFuType.Compute)'
+
+    - name: CUTE_L3_ML_AML_FullLoad
+      site: aml_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (memoryload_state === s_load_working) && Is_FullLoad'
+    - name: CUTE_L3_ML_AML_ZeroLoad
+      site: aml_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (memoryload_state === s_load_working) && Is_ZeroLoad'
+    - name: CUTE_L3_ML_BML_FullLoad
+      site: bml_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (memoryload_state === s_load_working)'
+    - name: CUTE_L3_ML_CML_FullLoad
+      site: cml_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (memoryload_state === s_load_working) && Is_FullLoad'
+    - name: CUTE_L3_ML_CML_ZeroLoad
+      site: cml_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (memoryload_state === s_load_working) && Is_ZeroLoad'
+    - name: CUTE_L3_ML_CML_Store
+      site: cml_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (memorystore_state === s_store_working)'
+
+    - name: CUTE_L3_DC_ADC_WaitComputeGo
+      site: adc_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (calculate_state === s_cal_working) && !io.ComputeGo'
+    - name: CUTE_L3_DC_ADC_WaitMatrixRegValid
+      site: adc_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (calculate_state === s_cal_working) && io.ComputeGo && !MatrixRegData.valid && !MatrixRegDataHoldValid'
+    - name: CUTE_L3_DC_BDC_WaitComputeGo
+      site: bdc_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (calculate_state === s_cal_working) && !io.ComputeGo'
+    - name: CUTE_L3_DC_BDC_WaitMatrixRegValid
+      site: bdc_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (calculate_state === s_cal_working) && io.ComputeGo && !MatrixRegData.valid && !MatrixRegDataHoldValid'
+    - name: CUTE_L3_DC_CDC_WaitComputeGo
+      site: cdc_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (calculate_state === s_cal_working) && (CVectorCount < Max_Caculate_Iter) && !io.ComputeGo'
+    - name: CUTE_L3_DC_CDC_WaitMatrixRegValid
+      site: cdc_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (calculate_state === s_cal_working) && (CVectorCount < Max_Caculate_Iter) && io.ComputeGo && !io.Matrix_C.valid'
+    - name: CUTE_L3_DC_CDC_WaitResultMatrixDValid
+      site: cdc_l3
+      expr: '!io.ConfigInfo.MicroTaskReady && (state =/= s_idle) && (calculate_state === s_cal_working) && (DVectorCount < Max_Caculate_Iter) && !io.ResultMatrix_D.valid'
+
+analysis:
+  parse:
+    line_regex: '^\[PERF \]\[time=\s*(?P<time>\d+)\]\s+[^:]+:\s*(?P<name>CUTE_[A-Za-z0-9_]+),\s*(?P<value>-?\d+)\s*$'
+    use_last_occurrence: true
+    keep_only_declared_direct_counters: true
+
+  direct_counters:
+    - CUTE_L0_TC_HeadValidSlot
+    - CUTE_L0_TC_IssueFire
+    - CUTE_L2_TC_ScoreboardBlocked
+    - CUTE_L2_TC_ReleasePendingStore
+    - CUTE_L2_TC_AMLNotReady
+    - CUTE_L2_TC_BMLNotReady
+    - CUTE_L2_TC_CMLNotReady
+    - CUTE_L2_TC_DCNotReady
+    - CUTE_L3_SB_Dep_SrcNotReady
+    - CUTE_L3_SB_Dep_DestBusy
+    - CUTE_L3_SB_Dep_DestHasConsumers
+    - CUTE_L3_SB_Dep_CMLStoreConsumer
+    - CUTE_L3_SB_Res_AMLBusy
+    - CUTE_L3_SB_Res_BMLBusy
+    - CUTE_L3_SB_Res_CMLLoadBusy
+    - CUTE_L3_SB_Res_CMLStoreBusy
+    - CUTE_L3_SB_Res_ComputeBusy
+    - CUTE_L3_ML_AML_FullLoad
+    - CUTE_L3_ML_AML_ZeroLoad
+    - CUTE_L3_ML_BML_FullLoad
+    - CUTE_L3_ML_CML_FullLoad
+    - CUTE_L3_ML_CML_ZeroLoad
+    - CUTE_L3_ML_CML_Store
+    - CUTE_L3_DC_ADC_WaitComputeGo
+    - CUTE_L3_DC_ADC_WaitMatrixRegValid
+    - CUTE_L3_DC_BDC_WaitComputeGo
+    - CUTE_L3_DC_BDC_WaitMatrixRegValid
+    - CUTE_L3_DC_CDC_WaitComputeGo
+    - CUTE_L3_DC_CDC_WaitMatrixRegValid
+    - CUTE_L3_DC_CDC_WaitResultMatrixDValid
+
+  summary_keys:
+    - CUTE_L0_TC_HeadValidSlot
+    - CUTE_L0_TC_IssueFire
+    - CUTE_L0_TC_Stall
+    - CUTE_L1_Schedule
+    - CUTE_L1_Memory
+    - CUTE_L1_Compute
+    - CUTE_L2_TC_ScoreboardBlocked
+    - CUTE_L2_TC_ReleasePendingStore
+    - CUTE_L2_TC_CMLNotReady
+    - CUTE_L2_TC_DCNotReady
+
+  derived_counters:
+    CUTE_L0_TC_SlotTotal: CUTE_L0_TC_HeadValidSlot
+    CUTE_L0_TC_Progress: CUTE_L0_TC_IssueFire
+    CUTE_L0_TC_Stall: CUTE_L0_TC_HeadValidSlot - CUTE_L0_TC_IssueFire
+    CUTE_L1_Schedule: CUTE_L2_TC_ScoreboardBlocked + CUTE_L2_TC_ReleasePendingStore
+    CUTE_L1_Memory: CUTE_L2_TC_AMLNotReady + CUTE_L2_TC_BMLNotReady + CUTE_L2_TC_CMLNotReady
+    CUTE_L1_Compute: CUTE_L2_TC_DCNotReady
+    CUTE_L3_SB_Dependency: CUTE_L3_SB_Dep_SrcNotReady + CUTE_L3_SB_Dep_DestBusy + CUTE_L3_SB_Dep_DestHasConsumers + CUTE_L3_SB_Dep_CMLStoreConsumer
+    CUTE_L3_SB_Resource: CUTE_L3_SB_Res_AMLBusy + CUTE_L3_SB_Res_BMLBusy + CUTE_L3_SB_Res_CMLLoadBusy + CUTE_L3_SB_Res_CMLStoreBusy + CUTE_L3_SB_Res_ComputeBusy
+    CUTE_L3_SB_Total: CUTE_L3_SB_Dependency + CUTE_L3_SB_Resource
+
+  consistency_checks:
+    - name: l0_balance
+      lhs: CUTE_L0_TC_HeadValidSlot
+      rhs: CUTE_L0_TC_IssueFire + CUTE_L0_TC_Stall
+      tolerance: 0.0
+      severity: error
+    - name: l1_compute_eq_dc
+      lhs: CUTE_L1_Compute
+      rhs: CUTE_L2_TC_DCNotReady
+      tolerance: 0.0
+      severity: error
+
+  hierarchy:
+    - parent: CUTE_L0_TC_Stall
+      children:
+        - CUTE_L1_Schedule
+        - CUTE_L1_Memory
+        - CUTE_L1_Compute
+    - parent: CUTE_L1_Schedule
+      children:
+        - CUTE_L2_TC_ScoreboardBlocked
+        - CUTE_L2_TC_ReleasePendingStore
+    - parent: CUTE_L1_Memory
+      children:
+        - CUTE_L2_TC_AMLNotReady
+        - CUTE_L2_TC_BMLNotReady
+        - CUTE_L2_TC_CMLNotReady
+    - parent: CUTE_L1_Compute
+      children:
+        - CUTE_L2_TC_DCNotReady
+    - parent: CUTE_L2_TC_ScoreboardBlocked
+      children:
+        - CUTE_L3_SB_Dep_SrcNotReady
+        - CUTE_L3_SB_Dep_DestBusy
+        - CUTE_L3_SB_Dep_DestHasConsumers
+        - CUTE_L3_SB_Dep_CMLStoreConsumer
+        - CUTE_L3_SB_Res_AMLBusy
+        - CUTE_L3_SB_Res_BMLBusy
+        - CUTE_L3_SB_Res_CMLLoadBusy
+        - CUTE_L3_SB_Res_CMLStoreBusy
+        - CUTE_L3_SB_Res_ComputeBusy
+    - parent: CUTE_L2_TC_AMLNotReady
+      children:
+        - CUTE_L3_ML_AML_FullLoad
+        - CUTE_L3_ML_AML_ZeroLoad
+    - parent: CUTE_L2_TC_BMLNotReady
+      children:
+        - CUTE_L3_ML_BML_FullLoad
+    - parent: CUTE_L2_TC_CMLNotReady
+      children:
+        - CUTE_L3_ML_CML_FullLoad
+        - CUTE_L3_ML_CML_ZeroLoad
+        - CUTE_L3_ML_CML_Store
+    - parent: CUTE_L2_TC_DCNotReady
+      children:
+        - CUTE_L3_DC_ADC_WaitComputeGo
+        - CUTE_L3_DC_ADC_WaitMatrixRegValid
+        - CUTE_L3_DC_BDC_WaitComputeGo
+        - CUTE_L3_DC_BDC_WaitMatrixRegValid
+        - CUTE_L3_DC_CDC_WaitComputeGo
+        - CUTE_L3_DC_CDC_WaitMatrixRegValid
+        - CUTE_L3_DC_CDC_WaitResultMatrixDValid
+
+  chart_groups_abs:
+    - name: L0/L1
+      ratio_parent: CUTE_L0_TC_Stall
+      counters:
+        - CUTE_L1_Schedule
+        - CUTE_L1_Memory
+        - CUTE_L1_Compute
+
+    - name: L2
+      counters:
+        - CUTE_L2_TC_ScoreboardBlocked
+        - CUTE_L2_TC_ReleasePendingStore
+        - CUTE_L2_TC_AMLNotReady
+        - CUTE_L2_TC_BMLNotReady
+        - CUTE_L2_TC_CMLNotReady
+        - CUTE_L2_TC_DCNotReady
+      subgroups:
+        - name: Schedule
+          counters:
+            - CUTE_L2_TC_ScoreboardBlocked
+            - CUTE_L2_TC_ReleasePendingStore
+        - name: Memory
+          counters:
+            - CUTE_L2_TC_AMLNotReady
+            - CUTE_L2_TC_BMLNotReady
+            - CUTE_L2_TC_CMLNotReady
+        - name: Compute
+          counters:
+            - CUTE_L2_TC_DCNotReady
+
+    - name: L3_SB
+      counters:
+        - CUTE_L3_SB_Dep_SrcNotReady
+        - CUTE_L3_SB_Dep_DestBusy
+        - CUTE_L3_SB_Dep_DestHasConsumers
+        - CUTE_L3_SB_Dep_CMLStoreConsumer
+        - CUTE_L3_SB_Res_AMLBusy
+        - CUTE_L3_SB_Res_BMLBusy
+        - CUTE_L3_SB_Res_CMLLoadBusy
+        - CUTE_L3_SB_Res_CMLStoreBusy
+        - CUTE_L3_SB_Res_ComputeBusy
+
+    - name: L3_ML_DC
+      counters:
+        - CUTE_L3_ML_AML_FullLoad
+        - CUTE_L3_ML_AML_ZeroLoad
+        - CUTE_L3_ML_BML_FullLoad
+        - CUTE_L3_ML_CML_FullLoad
+        - CUTE_L3_ML_CML_ZeroLoad
+        - CUTE_L3_ML_CML_Store
+        - CUTE_L3_DC_ADC_WaitComputeGo
+        - CUTE_L3_DC_ADC_WaitMatrixRegValid
+        - CUTE_L3_DC_BDC_WaitComputeGo
+        - CUTE_L3_DC_BDC_WaitMatrixRegValid
+        - CUTE_L3_DC_CDC_WaitComputeGo
+        - CUTE_L3_DC_CDC_WaitMatrixRegValid
+        - CUTE_L3_DC_CDC_WaitResultMatrixDValid
+
+  plot:
+    title: CUTE Counters (Value; ratio shown above each bar)
+    baseline_counter: CUTE_L0_TC_Stall
+    baseline_label: L0 Stall Ref
+    ratio_decimals: 3
+    group_gap: 0.9
+
+  display_aliases:
+    CUTE_L1_Schedule: Schedule
+    CUTE_L1_Memory: Memory
+    CUTE_L1_Compute: Compute
+    CUTE_L2_TC_ScoreboardBlocked: ScoreboardBlocked
+    CUTE_L2_TC_ReleasePendingStore: ReleasePendingStore
+    CUTE_L2_TC_AMLNotReady: AMLNotReady
+    CUTE_L2_TC_BMLNotReady: BMLNotReady
+    CUTE_L2_TC_CMLNotReady: CMLNotReady
+    CUTE_L2_TC_DCNotReady: DCNotReady
+    CUTE_L3_SB_Dep_SrcNotReady: Dep_SrcNotReady
+    CUTE_L3_SB_Dep_DestBusy: Dep_DestBusy
+    CUTE_L3_SB_Dep_DestHasConsumers: Dep_DestHasConsumers
+    CUTE_L3_SB_Dep_CMLStoreConsumer: Dep_CMLStoreConsumer
+    CUTE_L3_SB_Res_AMLBusy: Res_AMLBusy
+    CUTE_L3_SB_Res_BMLBusy: Res_BMLBusy
+    CUTE_L3_SB_Res_CMLLoadBusy: Res_CMLLoadBusy
+    CUTE_L3_SB_Res_CMLStoreBusy: Res_CMLStoreBusy
+    CUTE_L3_SB_Res_ComputeBusy: Res_ComputeBusy
+    CUTE_L3_ML_AML_FullLoad: AML_FullLoad
+    CUTE_L3_ML_AML_ZeroLoad: AML_ZeroLoad
+    CUTE_L3_ML_BML_FullLoad: BML_FullLoad
+    CUTE_L3_ML_CML_FullLoad: CML_FullLoad
+    CUTE_L3_ML_CML_ZeroLoad: CML_ZeroLoad
+    CUTE_L3_ML_CML_Store: CML_Store
+    CUTE_L3_DC_ADC_WaitComputeGo: ADC_WaitComputeGo
+    CUTE_L3_DC_ADC_WaitMatrixRegValid: ADC_WaitMatrixRegValid
+    CUTE_L3_DC_BDC_WaitComputeGo: BDC_WaitComputeGo
+    CUTE_L3_DC_BDC_WaitMatrixRegValid: BDC_WaitMatrixRegValid
+    CUTE_L3_DC_CDC_WaitComputeGo: CDC_WaitComputeGo
+    CUTE_L3_DC_CDC_WaitMatrixRegValid: CDC_WaitMatrixRegValid
+    CUTE_L3_DC_CDC_WaitResultMatrixDValid: CDC_WaitResultMatrixDValid

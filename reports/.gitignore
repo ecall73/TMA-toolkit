@@ -1,0 +1,3 @@
+# Keep directory, ignore archived run outputs
+*
+!.gitignore

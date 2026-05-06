@@ -1,0 +1,9 @@
+# Compatibility alias for legacy workflows.
+# Canonical preset has moved to: tools/TMA-toolkit/presets/cute/default.yaml
+
+deprecated: true
+redirect_to: presets/cute/default.yaml
+note: |
+  Recommended:
+    python3 tools/TMA-toolkit/tma.py apply --preset cute/default
+    python3 tools/TMA-toolkit/tma.py report --preset cute/default --log log/emu-error.log
