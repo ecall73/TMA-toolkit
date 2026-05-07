@@ -1,8 +1,10 @@
 # TMA-toolkit (Top-down Micro-architecture Analysis)
 
+Chinese version: [README.zh-CN.md](README.zh-CN.md)
+
 `tools/TMA-toolkit` is a module-agnostic toolchain:
 - `apply`: insert/remove `XSPerfAccumulate(...)` counters from YAML preset
-- `report`: parse log and generate CSV/PNG/MD/JSON from the same preset
+- `report`: parse log and generate CSV/PNG/MD/JSON/RPT from the same preset
 
 ## Layout
 
@@ -90,9 +92,25 @@ Generated files:
 - `values.csv`
 - `combined.png`
 - `report.md`
+- `report.rpt` (structured, AI-readable text report)
 - `consistency.json`
 - `input.log` (default backup on)
 - `run_meta.json`
+
+## RPT-first Analysis
+
+`report.rpt` is generated automatically with every `report` run:
+
+- Archive mode: `.../<run-id>/report.rpt`
+- `--out-prefix` mode: `<prefix>_report.rpt`
+
+Recommended reading order:
+
+1. `report.rpt` (structured diagnosis and hierarchy/group views)
+2. `values.csv` (exact numeric verification)
+3. `combined.png` (visual confirmation)
+
+This avoids relying on OCR/image interpretation for core conclusions.
 
 ## CUTE Default Preset Notes
 

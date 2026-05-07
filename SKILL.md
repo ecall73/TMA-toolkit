@@ -24,7 +24,7 @@ description: Guide for using tools/TMA-toolkit to apply XSPerfAccumulate instrum
 1. 选择 preset（例如 `cute/default` 或 `cute/legacy_27ac003_4cdc89a`）。
 2. 执行 `apply`（可先 `--dry-run`）。
 3. 运行既有仿真流程（`make run-emu ...`）。
-4. 执行 `report` 生成 CSV/PNG/MD/JSON。
+4. 执行 `report` 生成 CSV/PNG/MD/JSON/RPT。
 
 推荐命令：
 
@@ -40,6 +40,21 @@ Makefile 等价命令：
 make -C tools/TMA-toolkit apply PRESET=<module>/<preset>
 make -C tools/TMA-toolkit report PRESET=<module>/<preset> LOG=<log-path>
 ```
+
+## RPT-first 分析方法（给 Agent）
+
+`report` 会自动导出结构化 `report.rpt`（或 `<prefix>_report.rpt`）。  
+当 Agent 需要做性能分析时，优先采用以下顺序：
+
+1. 先读 `report.rpt`：
+  - `META`：确认 spec/log/run_id 是否正确。
+  - `CONSISTENCY`：先定位 FAIL 检查项。
+  - `TOP_CONTRIBUTORS`：快速锁定高贡献项。
+  - `TREE_VIEW` / `CHART_GROUP_VIEW`：按层级和分组还原图中信息。
+2. 再读 `values.csv`：做精细数值复核或二次计算。
+3. 最后看 `combined.png`：仅作为视觉确认，不作为唯一信息源。
+
+禁止仅依赖图片/OCR进行结论输出；默认以 `.rpt` 为主、图像为辅。
 
 ## 关键约束
 
@@ -75,10 +90,11 @@ make -C tools/TMA-toolkit report PRESET=<module>/<preset> LOG=<log-path>
 - 分析验证：
   - 对比历史基线 CSV 的计数项集合和数值。
   - 检查 `consistency.json` 与报告中的一致性检查项。
+  - 检查 `report.rpt` 与 `values.csv`/`combined.png` 的分组与比率一致性。
 
 ## 易错点
 
 - 误用 `--out-prefix` 导致输出在 `log/`，而非 `tools/TMA-toolkit/reports/`。
 - 只改 `instrumentation` 不改 `analysis`，导致图表缺项或口径不闭合。
 - 改了 `preset` 却仍在用旧 `run-id` 对比，误判结果。
-
+- 只看图不看 `report.rpt`，忽略结构化诊断信息（检查失败、Top贡献项、父子比率）。

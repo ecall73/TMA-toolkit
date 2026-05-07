@@ -646,6 +646,180 @@ def write_markdown(
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def write_rpt(
+    path: Path,
+    spec_path: Path,
+    log_path: Path,
+    preset_id: Optional[str],
+    run_id: Optional[str],
+    sample_time: Optional[int],
+    cli_args: Optional[Sequence[str]],
+    values: Mapping[str, float],
+    direct_names: Sequence[str],
+    summary_keys: Sequence[str],
+    checks: Sequence[dict],
+    hierarchy: Sequence[dict],
+    groups: Sequence[dict],
+    aliases: Mapping[str, str],
+    fallback_used: Mapping[str, str],
+    unresolved_missing: Sequence[str],
+    baseline_counter: str,
+    top_n: int = 10,
+):
+    lines: List[str] = []
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+
+    lines.append("# TMA Structured Report (RPT)")
+    lines.append("")
+
+    lines.append("[META]")
+    lines.append(f"spec={spec_path}")
+    lines.append(f"log={log_path}")
+    lines.append(f"preset={preset_id if preset_id else 'custom'}")
+    lines.append(f"run_id={run_id if run_id else 'N/A'}")
+    lines.append(f"sample_time={sample_time if sample_time is not None else 'N/A'}")
+    lines.append(f"generated_at_utc={now}")
+    if cli_args is not None:
+        lines.append(f"arguments={' '.join(str(x) for x in cli_args)}")
+    lines.append("")
+
+    lines.append("[KEY_VALUES]")
+    for key in summary_keys:
+        lines.append(f"{key}={values.get(key, math.nan)}")
+    lines.append(f"direct_counter_count={len(direct_names)}")
+    lines.append(f"fallback_counter_count={len(fallback_used)}")
+    if fallback_used:
+        for k, v in fallback_used.items():
+            lines.append(f"fallback.{k}={v}")
+    lines.append(f"unresolved_missing_count={len(unresolved_missing)}")
+    if unresolved_missing:
+        lines.append(f"unresolved_missing={','.join(unresolved_missing)}")
+    lines.append("")
+
+    lines.append("[CONSISTENCY]")
+    lines.append("name|status|severity|detail")
+    for c in checks:
+        status = "PASS" if c.get("passed") else "FAIL"
+        lines.append(f"{c.get('name')}|{status}|{c.get('severity','error')}|{c.get('detail','')}")
+    lines.append("")
+
+    lines.append("[TREE_VIEW]")
+    lines.append("parent|parent_value|child|child_label|child_value|ratio_to_parent")
+    for rel in hierarchy:
+        if not isinstance(rel, dict):
+            continue
+        parent = rel.get("parent")
+        if not parent:
+            continue
+        parent_name = str(parent)
+        parent_value = values.get(parent_name, math.nan)
+        for child in rel.get("children", []):
+            child_name = str(child)
+            child_value = values.get(child_name, math.nan)
+            ratio = compute_ratio(child_value, parent_value)
+            lines.append(
+                f"{parent_name}|{parent_value}|{child_name}|{short_label(child_name, aliases)}|{child_value}|{ratio}"
+            )
+    lines.append("")
+
+    parent_from_hierarchy = build_hierarchy_parent_map(hierarchy)
+    lines.append("[CHART_GROUP_VIEW]")
+    lines.append("group|counter|label|value|group_parent|ratio_to_group_parent|hierarchy_parent|ratio_to_hierarchy_parent")
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        group_name = str(group.get("name", ""))
+        group_parent = group.get("ratio_parent")
+        group_parent_name = str(group_parent) if isinstance(group_parent, str) else ""
+        group_parent_value = values.get(group_parent_name, math.nan) if group_parent_name else math.nan
+        counters = [str(c) for c in group.get("counters", [])]
+        for counter in counters:
+            val = values.get(counter, math.nan)
+            ratio_group = compute_ratio(val, group_parent_value) if group_parent_name else math.nan
+            hier_parent_name = parent_from_hierarchy.get(counter, "")
+            hier_parent_value = values.get(hier_parent_name, math.nan) if hier_parent_name else math.nan
+            ratio_hier = compute_ratio(val, hier_parent_value) if hier_parent_name else math.nan
+            lines.append(
+                f"{group_name}|{counter}|{short_label(counter, aliases)}|{val}|{group_parent_name}|{ratio_group}|{hier_parent_name}|{ratio_hier}"
+            )
+    lines.append("")
+
+    lines.append("[TOP_CONTRIBUTORS]")
+    lines.append(f"baseline_counter={baseline_counter}")
+    baseline_value = values.get(baseline_counter, math.nan)
+    lines.append(f"baseline_value={baseline_value}")
+    lines.append("rank|counter|label|value|ratio_to_baseline")
+    if is_finite_number(baseline_value) and float(baseline_value) != 0.0:
+        seen: Set[str] = set()
+        candidates: List[str] = []
+        for rel in hierarchy:
+            if not isinstance(rel, dict):
+                continue
+            parent = rel.get("parent")
+            if parent:
+                p = str(parent)
+                if p not in seen:
+                    seen.add(p)
+                    candidates.append(p)
+            for c in rel.get("children", []):
+                cn = str(c)
+                if cn not in seen:
+                    seen.add(cn)
+                    candidates.append(cn)
+        for g in groups:
+            if not isinstance(g, dict):
+                continue
+            for c in g.get("counters", []):
+                cn = str(c)
+                if cn not in seen:
+                    seen.add(cn)
+                    candidates.append(cn)
+        ranked: List[Tuple[str, float, float]] = []
+        for c in candidates:
+            v = values.get(c, math.nan)
+            if not is_finite_number(v):
+                continue
+            ratio = compute_ratio(v, baseline_value)
+            ranked.append((c, float(v), ratio))
+        ranked.sort(key=lambda x: abs(x[2]) if is_finite_number(x[2]) else -1.0, reverse=True)
+        for idx, (counter, v, ratio) in enumerate(ranked[: max(1, int(top_n))], start=1):
+            lines.append(f"{idx}|{counter}|{short_label(counter, aliases)}|{v}|{ratio}")
+    lines.append("")
+
+    lines.append("[DIAGNOSTIC_NOTES]")
+    notes: List[str] = []
+    failed = [c for c in checks if not c.get("passed")]
+    if failed:
+        notes.append(f"failed_consistency_checks={len(failed)}")
+        for c in failed:
+            notes.append(f"check_fail:{c.get('name')}:{c.get('detail','')}")
+    nan_keys = [k for k, v in values.items() if not is_finite_number(v)]
+    if nan_keys:
+        notes.append(f"nan_or_inf_values={len(nan_keys)}")
+        notes.append("nan_or_inf_keys=" + ",".join(nan_keys[:20]))
+    for rel in hierarchy:
+        if not isinstance(rel, dict):
+            continue
+        parent = rel.get("parent")
+        if not parent:
+            continue
+        p = str(parent)
+        pv = values.get(p, math.nan)
+        for child in rel.get("children", []):
+            c = str(child)
+            cv = values.get(c, math.nan)
+            r = compute_ratio(cv, pv)
+            if is_finite_number(r) and abs(float(r)) > 1.0:
+                notes.append(f"ratio_gt_1:{c}/parent={p}:ratio={r}")
+    if not notes:
+        notes.append("none")
+    for n in notes:
+        lines.append(f"- {n}")
+    lines.append("")
+
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def _sanitize_part(name: str) -> str:
     s = re.sub(r"[^A-Za-z0-9_.-]+", "-", name.strip())
     return s.strip("-") or "unnamed"
@@ -655,15 +829,16 @@ def _default_run_id() -> str:
     return dt.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-def _prefix_output_paths(out_prefix: Path) -> Tuple[Path, Path, Path, Path]:
+def _prefix_output_paths(out_prefix: Path) -> Tuple[Path, Path, Path, Path, Path]:
     csv_path = out_prefix.with_name(out_prefix.name + "_values.csv")
     png_path = out_prefix.with_name(out_prefix.name + "_combined.png")
     md_path = out_prefix.with_name(out_prefix.name + "_report.md")
     json_path = out_prefix.with_name(out_prefix.name + "_consistency.json")
-    return csv_path, png_path, md_path, json_path
+    rpt_path = out_prefix.with_name(out_prefix.name + "_report.rpt")
+    return csv_path, png_path, md_path, json_path, rpt_path
 
 
-def _archive_output_paths(out_root: Path, preset_id: str, run_id: str) -> Tuple[Path, Path, Path, Path, Path]:
+def _archive_output_paths(out_root: Path, preset_id: str, run_id: str) -> Tuple[Path, Path, Path, Path, Path, Path]:
     parts = [_sanitize_part(p) for p in preset_id.split("/") if p.strip()]
     if not parts:
         parts = ["custom", "default"]
@@ -672,7 +847,8 @@ def _archive_output_paths(out_root: Path, preset_id: str, run_id: str) -> Tuple[
     png_path = run_dir / "combined.png"
     md_path = run_dir / "report.md"
     json_path = run_dir / "consistency.json"
-    return run_dir, csv_path, png_path, md_path, json_path
+    rpt_path = run_dir / "report.rpt"
+    return run_dir, csv_path, png_path, md_path, json_path, rpt_path
 
 
 def run_report(
@@ -723,16 +899,17 @@ def run_report(
     run_dir: Optional[Path] = None
     log_backup_path: Optional[Path] = None
     meta_path: Optional[Path] = None
+    rpt_path: Optional[Path] = None
     effective_run_id: Optional[str] = run_id
     if out_prefix is not None:
         out_prefix.parent.mkdir(parents=True, exist_ok=True)
-        csv_path, png_path, md_path, json_path = _prefix_output_paths(out_prefix)
+        csv_path, png_path, md_path, json_path, rpt_path = _prefix_output_paths(out_prefix)
     else:
         if out_root is None:
             raise ValueError("out_root is required when out_prefix is not provided")
         effective_preset = preset_id or f"custom/{resolved_spec_path.stem}"
         effective_run_id = run_id or _default_run_id()
-        run_dir, csv_path, png_path, md_path, json_path = _archive_output_paths(out_root, effective_preset, effective_run_id)
+        run_dir, csv_path, png_path, md_path, json_path, rpt_path = _archive_output_paths(out_root, effective_preset, effective_run_id)
         run_dir.mkdir(parents=True, exist_ok=True)
         meta_path = run_dir / "run_meta.json"
         if backup_log:
@@ -757,6 +934,27 @@ def run_report(
     summary_keys_cfg = ana.get("summary_keys", [])
     summary_keys = [str(k) for k in summary_keys_cfg] if isinstance(summary_keys_cfg, list) else []
     write_markdown(md_path, resolved_spec_path, log_path, all_values, checks, png_path, csv_path, json_path, summary_keys)
+    plot_cfg = ana.get("plot", {})
+    baseline_counter = str(plot_cfg.get("baseline_counter", "CUTE_L0_TC_Stall")) if isinstance(plot_cfg, dict) else "CUTE_L0_TC_Stall"
+    write_rpt(
+        path=rpt_path if rpt_path is not None else md_path.with_suffix(".rpt"),
+        spec_path=resolved_spec_path,
+        log_path=log_path,
+        preset_id=preset_id,
+        run_id=effective_run_id,
+        sample_time=parsed.last_time,
+        cli_args=cli_args,
+        values=all_values,
+        direct_names=direct_names,
+        summary_keys=summary_keys,
+        checks=checks,
+        hierarchy=hierarchy,
+        groups=groups,
+        aliases=ana.get("display_aliases", {}),
+        fallback_used=fallback_used,
+        unresolved_missing=unresolved_missing,
+        baseline_counter=baseline_counter,
+    )
 
     if meta_path is not None:
         meta = {
@@ -775,6 +973,7 @@ def run_report(
                 "png": str(png_path),
                 "markdown": str(md_path),
                 "consistency": str(json_path),
+                "rpt": str(rpt_path) if rpt_path is not None else None,
             },
         }
         meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -785,6 +984,8 @@ def run_report(
     print(f"[INFO] chart={png_path}")
     print(f"[INFO] report={md_path}")
     print(f"[INFO] consistency={json_path}")
+    if rpt_path is not None:
+        print(f"[INFO] rpt={rpt_path}")
     if log_backup_path is not None:
         print(f"[INFO] log_backup={log_backup_path}")
     if meta_path is not None:

@@ -1,8 +1,10 @@
 # TMA-toolkit（Top-down Micro-architecture Analysis）
 
+English version: [README.md](README.md)
+
 `tools/TMA-toolkit` 是一个与模块解耦的性能分析工具链：
 - `apply`：根据 YAML preset 自动插入/刷新 `XSPerfAccumulate(...)` 插桩
-- `report`：根据同一份 YAML + 仿真日志生成 `CSV/PNG/Markdown/JSON` 报告
+- `report`：根据同一份 YAML + 仿真日志生成 `CSV/PNG/Markdown/JSON/RPT` 报告
 
 ## 目录结构
 
@@ -94,9 +96,25 @@ tools/TMA-toolkit/reports/<module>/<preset>/<run-id>/
 - `values.csv`
 - `combined.png`
 - `report.md`
+- `report.rpt`（结构化文本报告，便于 AI/Agent 直接读取）
 - `consistency.json`
 - `input.log`（默认备份）
 - `run_meta.json`
+
+## RPT-first 分析建议
+
+每次 `report` 都会自动生成 `.rpt`：
+
+- 归档模式：`.../<run-id>/report.rpt`
+- `--out-prefix` 模式：`<prefix>_report.rpt`
+
+建议阅读顺序：
+
+1. 先读 `report.rpt`（结构化诊断信息）
+2. 再读 `values.csv`（数值复核）
+3. 最后看 `combined.png`（视觉确认）
+
+这样可以避免依赖 OCR/看图猜测来提取关键信息。
 
 ## 新增模块支持
 
@@ -105,4 +123,3 @@ tools/TMA-toolkit/reports/<module>/<preset>/<run-id>/
 1. 新建 `tools/TMA-toolkit/presets/<module>/<preset>.yaml`
 2. 在 YAML 中定义 `instrumentation` 与 `analysis`
 3. 直接执行 `apply + report`
-
