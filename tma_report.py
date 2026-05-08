@@ -124,30 +124,6 @@ def load_spec(path: Path) -> dict:
     return data
 
 
-def resolve_spec_redirect(spec_path: Path) -> Path:
-    seen: Set[Path] = set()
-    cur = spec_path.resolve()
-    while True:
-        if cur in seen:
-            raise ValueError(f"Cyclic spec redirect detected: {cur}")
-        seen.add(cur)
-
-        data = load_spec(cur)
-        redirect_to = data.get("redirect_to")
-        has_tma_content = isinstance(data.get("instrumentation"), dict) or isinstance(data.get("analysis"), dict)
-        if not isinstance(redirect_to, str) or has_tma_content:
-            return cur
-
-        nxt = Path(redirect_to)
-        if not nxt.is_absolute():
-            nxt = (cur.parent / nxt).resolve()
-        else:
-            nxt = nxt.resolve()
-        if not nxt.exists():
-            raise FileNotFoundError(f"redirect_to target not found: {redirect_to} (from {cur})")
-        cur = nxt
-
-
 def resolve_analysis(spec: dict) -> dict:
     ana = spec.get("analysis")
     if isinstance(ana, dict):
@@ -862,7 +838,7 @@ def run_report(
     preset_id: Optional[str] = None,
     cli_args: Optional[Sequence[str]] = None,
 ) -> int:
-    resolved_spec_path = resolve_spec_redirect(spec_path)
+    resolved_spec_path = spec_path.resolve()
     spec = load_spec(resolved_spec_path)
     ana = resolve_analysis(spec)
 
@@ -996,8 +972,8 @@ def run_report(
 
 
 def build_argparser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Generate TMA report from log + spec")
-    p.add_argument("--spec", type=Path, required=True)
+    p = argparse.ArgumentParser(description="Generate TMA report from log + preset")
+    p.add_argument("--preset-file", type=Path, required=True)
     p.add_argument("--log", type=Path, required=True)
     p.add_argument("--out-prefix", type=Path, default=None)
     p.add_argument("--out-root", type=Path, default=Path(__file__).resolve().parent / "reports")
@@ -1016,7 +992,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("        python3 -m pip install matplotlib", file=sys.stderr)
         return 2
     return run_report(
-        spec_path=args.spec.resolve(),
+        spec_path=args.preset_file.resolve(),
         log_path=args.log.resolve(),
         out_prefix=args.out_prefix.resolve() if args.out_prefix else None,
         strict=args.strict,

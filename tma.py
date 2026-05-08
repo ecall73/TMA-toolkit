@@ -18,50 +18,32 @@ def _presets_root() -> Path:
     return _tool_dir() / "presets"
 
 
-def _resolve_spec_and_preset(spec: Optional[Path], preset: Optional[str]) -> Tuple[Path, Optional[str]]:
-    if spec is not None and preset:
-        raise ValueError("Use either --spec or --preset, not both")
-    if preset:
-        rel = preset.strip().strip("/")
-        rel_path = Path(rel)
-        if rel_path.suffix != ".yaml":
-            rel_path = rel_path.with_suffix(".yaml")
-        spec_path = (_presets_root() / rel_path).resolve()
-        if not spec_path.exists():
-            raise FileNotFoundError(f"Preset not found: {preset} -> {spec_path}")
-        preset_id = str(rel_path.with_suffix("")).replace("\\", "/")
-        return spec_path, preset_id
-
-    if spec is None:
-        raise ValueError("Either --preset or --spec is required")
-    spec_path = spec.resolve()
+def _resolve_preset(preset: str) -> Tuple[Path, str]:
+    rel = preset.strip().strip("/")
+    rel_path = Path(rel)
+    if rel_path.suffix != ".yaml":
+        rel_path = rel_path.with_suffix(".yaml")
+    spec_path = (_presets_root() / rel_path).resolve()
     if not spec_path.exists():
-        raise FileNotFoundError(f"Spec not found: {spec_path}")
-
-    try:
-        rel = spec_path.relative_to(_presets_root().resolve())
-        preset_id = str(rel.with_suffix("")).replace("\\", "/")
-    except ValueError:
-        preset_id = None
+        raise FileNotFoundError(f"Preset not found: {preset} -> {spec_path}")
+    preset_id = str(rel_path.with_suffix("")).replace("\\", "/")
     return spec_path, preset_id
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="TMA tool (single YAML source)")
+    p = argparse.ArgumentParser(description="TMA tool (preset-only)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     ap = sub.add_parser("apply", help="Apply/refresh RTL instrumentation")
-    ap.add_argument("--spec", type=Path)
-    ap.add_argument("--preset", type=str, help="Preset under tools/TMA-toolkit/presets, e.g. cute/default")
+    ap.add_argument("--preset", type=str, required=True, help="Preset under tools/TMA-toolkit/presets, e.g. cute/default")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--baseline-ref", type=str, default=None)
     ap.add_argument("--repo-root", type=str, default=None)
 
-    rp = sub.add_parser("report", help="Generate report from log + spec")
-    rp.add_argument("--spec", type=Path)
-    rp.add_argument("--preset", type=str, help="Preset under tools/TMA-toolkit/presets, e.g. cute/default")
+    rp = sub.add_parser("report", help="Generate report from log + preset")
+    rp.add_argument("--preset", type=str, required=True, help="Preset under tools/TMA-toolkit/presets, e.g. cute/default")
     rp.add_argument("--log", type=Path, required=True)
-    rp.add_argument("--out-prefix", type=Path, help="Compatibility mode output prefix")
+    rp.add_argument("--out-prefix", type=Path, help="Output prefix mode")
     rp.add_argument("--out-root", type=Path, default=_tool_dir() / "reports", help="Archive root when --out-prefix is omitted")
     rp.add_argument("--run-id", type=str, default=None, help="Archive run id; default is timestamp")
     rp.add_argument("--backup-log", dest="backup_log", action="store_true", default=True, help="Backup input log in archive directory (default)")
@@ -75,14 +57,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.cmd == "apply":
-            spec_path, _ = _resolve_spec_and_preset(args.spec, args.preset)
+            spec_path, _ = _resolve_preset(args.preset)
             return apply_impl(spec_path, args.dry_run, args.baseline_ref, args.repo_root)
         if args.cmd == "report":
             if plt is None:
                 print("[ERROR] matplotlib is not installed. Please install it first:", file=sys.stderr)
-                print("        python3 -m pip install matplotlib", file=sys.stderr)
+                print("        uv sync --project tools/TMA-toolkit", file=sys.stderr)
                 return 2
-            spec_path, preset_id = _resolve_spec_and_preset(args.spec, args.preset)
+            spec_path, preset_id = _resolve_preset(args.preset)
             return run_report(
                 spec_path=spec_path,
                 log_path=args.log.resolve(),

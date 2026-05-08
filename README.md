@@ -2,135 +2,288 @@
 
 Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
-`tools/TMA-toolkit` is a module-agnostic toolchain:
-- `apply`: insert/remove `XSPerfAccumulate(...)` counters from YAML preset
-- `report`: parse log and generate CSV/PNG/MD/JSON/RPT from the same preset
+`tools/TMA-toolkit` is a YAML-driven, module-agnostic performance analysis toolkit:
+- `apply`: insert/refresh `XSPerfAccumulate(...)` counters from preset
+- `report`: parse simulation log and generate `CSV/PNG/MD/JSON/RPT`
 
-## Layout
+## Infrastructure Value
 
-- `tools/TMA-toolkit/tma.py`: CLI entry
-- `tools/TMA-toolkit/tma_apply.py`: instrumentation engine
-- `tools/TMA-toolkit/tma_report.py`: report engine
-- `tools/TMA-toolkit/presets/<module>/<preset>.yaml`: module presets
-- `tools/TMA-toolkit/reports/`: archived reports
-- `tools/TMA-toolkit/Makefile`: unified entrypoints
+Without infrastructure, teams usually add `XSPerfAccumulate(...)` directly in RTL. That is fast short-term but expensive long-term:
 
-Current default preset:
-- `cute/default` -> `tools/TMA-toolkit/presets/cute/default.yaml`
-- `cute/legacy_27ac003_4cdc89a` -> `tools/TMA-toolkit/presets/cute/legacy_27ac003_4cdc89a.yaml`
+- Counter code remains in branches or mainline and keeps accumulating.
+- Different developers define different semantics, so results are hard to compare.
+- Temporary probes are easy to forget/remove incorrectly.
+- Code review gets noisy with observation-only edits.
 
-Additional docs:
-- Chinese README: `tools/TMA-toolkit/README.zh-CN.md`
-- AI usage guide: `tools/TMA-toolkit/SKILL.md`
+This toolkit moves observation semantics to YAML presets:
 
-## Quick Start
+- Single source of truth: counters, hierarchy, formulas, chart groups, checks.
+- Apply on demand: instrument only when needed.
+- Idempotent automation: stable insertion/replacement behavior.
+- Reproducible report: same preset + same log => same results.
 
-### 0) Optional local Python env (recommended for plotting)
+## Background and Goal
+
+Top-down analysis attributes total stall layer by layer:
+
+1. L1 major class: `Memory / Compute / Dependency`
+2. L2 subcause: e.g. specific SB dependency/resource reason
+3. L3 source: e.g. producer side `AML/BML/CML/Compute`
+
+The engineering target is to answer bottleneck questions quickly with reproducible data, by changing preset YAML instead of changing toolkit code.
+
+## Toolkit Responsibilities
+
+- `tma.py`: CLI entry
+- `tma_apply.py`: instrumentation engine
+- `tma_report.py`: parsing, formulas, consistency checks, charting, `.rpt`
+- `presets/<module>/<preset>.yaml`: module-specific instrumentation + analysis
+- `reports/`: archived outputs
+- `examples/`: one teaching demo bundle
+
+Default preset:
+
+- `cute/default`: exclusive L1 `Memory/Compute/Dependency`
+
+## Preset Format
+
+TMA-toolkit instrumentation schema:
+
+- `instrumentation.sites`: where to insert counters (file/anchor/indent/import/block id)
+- `instrumentation.points`: what to count (`name`, `site`, `expr`)
+
+Define `instrumentation` with `sites + points`, and keep module customization in this structure.
+
+## Make Targets (Recommended Entry)
+
+Use Make targets as the primary interface for daily work:
+
+| Target | Purpose | Key inputs | Exit behavior | Output location |
+| --- | --- | --- | --- | --- |
+| `sync` | Install/update Python dependencies from `uv.lock` | none | non-zero on failure | local `.venv` |
+| `list-presets` | List available preset ids | none | always zero | stdout |
+| `show-vars` | Print resolved variables/paths for debug | optional vars | always zero | stdout |
+| `apply-dry` | Preview instrumentation changes and anchor match | `PRESET`, `BASELINE_REF`, `REPO_ROOT` | non-zero on failure | stdout summary/diff |
+| `apply` | Write instrumentation into RTL | `PRESET`, `BASELINE_REF`, `REPO_ROOT` | non-zero on failure | RTL files |
+| `report` | Generate archive report in tolerant mode | `PRESET`, `LOG`, `OUT_ROOT`, `RUN_ID`, `BACKUP_LOG` | always zero (`|| true`) | `reports/<module>/<preset>/<run-id>/` |
+| `report-strict` | Generate archive report in gate mode | same as `report` | non-zero on strict/check failure | same as `report` |
+| `report-prefix` | Generate prefix-mode report in tolerant mode | `PRESET`, `LOG`, `OUT_PREFIX` | always zero (`|| true`) | `<OUT_PREFIX>_*` |
+| `report-prefix-strict` | Generate prefix-mode report in gate mode | `PRESET`, `LOG`, `OUT_PREFIX` | non-zero on strict/check failure | `<OUT_PREFIX>_*` |
+| `report-no-backup` | Archive report without `input.log` backup | `PRESET`, `LOG`, `OUT_ROOT` | always zero (`|| true`) | archive dir |
+| `report-no-backup-strict` | Strict archive report without `input.log` backup | `PRESET`, `LOG`, `OUT_ROOT` | non-zero on strict/check failure | archive dir |
+| `demo` | Rebuild repository teaching demo | none | always zero (`|| true`) | `examples/tma-cute_*` |
+| `demo-strict` | Strict rebuild of teaching demo | none | non-zero on strict/check failure | `examples/tma-cute_*` |
+
+## Full Workflow (`cute/default`)
+
+### 1) Environment
 
 ```bash
-python3 -m venv tools/TMA-toolkit/.venv
-tools/TMA-toolkit/.venv/bin/pip install matplotlib pyyaml
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --project tools/TMA-toolkit
 ```
 
-### Apply instrumentation
+### 2) List presets
 
 ```bash
-python3 tools/TMA-toolkit/tma.py apply --preset cute/default
+make -C tools/TMA-toolkit list-presets
 ```
 
-### Run simulation
+### 3) Apply instrumentation
+
+Preview changes and validate anchors:
+
+```bash
+make -C tools/TMA-toolkit apply-dry PRESET=cute/default
+```
+
+Write instrumentation into RTL:
+
+```bash
+make -C tools/TMA-toolkit apply PRESET=cute/default
+```
+
+Optional debug (resolved paths/vars):
+
+```bash
+make -C tools/TMA-toolkit show-vars PRESET=cute/default LOG=log/emu-error.log
+```
+
+### 4) Run simulation
 
 ```bash
 make run-emu PAYLOAD=<your-payload>
 ```
 
-### Generate report from log
+### 5) Generate report
+
+Archive mode, tolerant (always exits zero):
 
 ```bash
-python3 tools/TMA-toolkit/tma.py report \
-  --preset cute/default \
-  --log log/emu-error.log
-```
-
-Legacy baseline (for `dev/cute_tma` commits `27ac003` + `4cdc89a`):
-
-```bash
-python3 tools/TMA-toolkit/tma.py apply --preset cute/legacy_27ac003_4cdc89a --dry-run
-python3 tools/TMA-toolkit/tma.py report \
-  --preset cute/legacy_27ac003_4cdc89a \
-  --log log/emu-error.base.log \
-  --out-prefix log/cute-counter-graph-legacy
-```
-
-## Makefile Workflow
-
-```bash
-make -C tools/TMA-toolkit list-presets
-make -C tools/TMA-toolkit apply PRESET=cute/default
-make -C tools/TMA-toolkit apply-dry PRESET=cute/default
 make -C tools/TMA-toolkit report PRESET=cute/default LOG=log/emu-error.log
+```
+
+Archive mode, strict gate:
+
+```bash
 make -C tools/TMA-toolkit report-strict PRESET=cute/default LOG=log/emu-error.log
 ```
 
-Variables:
-- `PRESET` default `cute/default`
-- `LOG` default `../../log/emu-error.log` (relative to `tools/TMA-toolkit/Makefile`)
-- `OUT_ROOT` default `tools/TMA-toolkit/reports`
-- `RUN_ID` optional (default timestamp)
-- `BASELINE_REF` / `REPO_ROOT` for `apply`
-- `PYTHON` optional override; by default Makefile uses `tools/TMA-toolkit/.venv/bin/python3` if it exists, otherwise `python3`
+Prefix mode to write into `log/`:
 
-## Report Archive
+```bash
+make -C tools/TMA-toolkit report-prefix PRESET=cute/default LOG=log/emu-error.log OUT_PREFIX=log/tma-cute
+```
 
-Each run is written to:
+### 6) Output files
+
+Archive path:
 
 ```text
 tools/TMA-toolkit/reports/<module>/<preset>/<run-id>/
 ```
 
-Generated files:
-- `values.csv`
-- `combined.png`
-- `report.md`
-- `report.rpt` (structured, AI-readable text report)
-- `consistency.json`
-- `input.log` (default backup on)
-- `run_meta.json`
+Core artifacts:
 
-## RPT-first Analysis
+- `values.csv`: direct + derived + parent ratios
+- `combined.png`: grouped bars + baseline reference line
+- `report.md`: human summary
+- `report.rpt`: structured machine-readable report
+- `consistency.json`: check results
+- `input.log`: backed up input log
+- `run_meta.json`: run metadata
 
-`report.rpt` is generated automatically with every `report` run:
+## Example / Demo (Single Teaching Bundle)
 
-- Archive mode: `.../<run-id>/report.rpt`
-- `--out-prefix` mode: `<prefix>_report.rpt`
+The repository contains one reproducible teaching example in flat `examples/`:
 
-Recommended reading order:
+- `examples/emu-error.default.log` (trimmed to `cute/default` direct counters only)
+- `examples/tma-cute_values.csv`
+- `examples/tma-cute_combined.png`
+- `examples/tma-cute_report.md`
+- `examples/tma-cute_consistency.json`
+- `examples/tma-cute_report.rpt`
 
-1. `report.rpt` (structured diagnosis and hierarchy/group views)
-2. `values.csv` (exact numeric verification)
-3. `combined.png` (visual confirmation)
-
-This avoids relying on OCR/image interpretation for core conclusions.
-
-## CUTE Default Preset Notes
-
-- L1 uses exclusive `Memory / Compute / Dependency`.
-- `ReleasePendingStore` is **not** a direct counter.
-- L1 memory child uses residual bucket:
-  - `CUTE_L2_Memory_Remain = L1_Memory - AML - BML - CML`
-
-## CUTE Legacy Preset Notes
-
-- L1 uses nonexclusive `Memory / Compute / Schedule`.
-- It restores `CUTE_L2_TC_*` + `CUTE_L3_SB_*` + `CUTE_L3_ML_*` + `CUTE_L3_DC_*` hierarchy and chart layout used by legacy baseline reports.
-
-## Add New Module
-
-1. Add a preset under `tools/TMA-toolkit/presets/<module>/<preset>.yaml`.
-2. Define both `instrumentation` and `analysis`.
-3. Run:
+Reproduce the demo bundle:
 
 ```bash
-python3 tools/TMA-toolkit/tma.py apply --preset <module>/<preset>
-python3 tools/TMA-toolkit/tma.py report --preset <module>/<preset> --log <log>
+make -C tools/TMA-toolkit demo
+```
+
+Note: `make ... demo` is tolerant and returns zero. Use `make ... demo-strict` for gate behavior.
+
+Demo chart:
+
+![TMA demo chart](examples/tma-cute_combined.png)
+
+Expected key results (from `examples/tma-cute_values.csv`):
+
+- `CUTE_L0_TC_Stall = 83632`
+- `L1_Memory = 36537 (43.69% of L0)`
+- `L1_Compute = 521 (0.62% of L0)`
+- `L1_Dependency = 46574 (55.69% of L0)`
+- `L2_Dep_SrcNotReady = 47095`
+- `L2_Res_CMLLoadBusy = 26232`
+- `L3_Src_By_CML = 37717`
+
+Consistency summary (from `examples/tma-cute_consistency.json`):
+
+- `l1_sum_eq_l0_stall`: PASS
+- `l2_sum_eq_l1_dependency`: FAIL (`73327 != 46574`)
+
+## Top-down Reading Guide
+
+Suggested order:
+
+1. Ratio first
+2. Absolute value second
+3. Consistency checks last
+
+L0 baseline:
+
+- baseline is `CUTE_L0_TC_Stall` (dashed line `L0 Stall Ref`)
+
+L1 major causes:
+
+- `CUTE_L1_TC_Stall_Memory`
+- `CUTE_L1_TC_Stall_Compute`
+- `CUTE_L1_TC_Stall_Dependency`
+
+L1 Memory children:
+
+- `CUTE_L1_TC_Block_AML`
+- `CUTE_L1_TC_Block_BML`
+- `CUTE_L1_TC_Block_CML`
+- `CUTE_L2_Memory_Remain` (residual bucket)
+
+L1 Compute children:
+
+- `CUTE_L1_TC_Block_ADC`
+- `CUTE_L1_TC_Block_BDC`
+- `CUTE_L1_TC_Block_CDC`
+
+L1 Dependency children (L2):
+
+- Dependency class: `SrcNotReady / DestBusy / DestHasConsumers / CMLStoreConsumer`
+- Resource class: `AMLBusy / BMLBusy / CMLLoadBusy / CMLStoreBusy / ComputeBusy`
+
+L3 source split:
+
+- `SrcNotReady_By_AML/BML/CML/Compute`
+
+## Troubleshooting
+
+`matplotlib` missing:
+
+- Symptom: `[ERROR] matplotlib is not installed`
+- Action: `uv sync --project tools/TMA-toolkit`
+
+`report-strict` failed:
+
+- Symptom: non-zero exit
+- Action: inspect `consistency.json` and check preset semantics/domain closure.
+- Note: `make report` is tolerant; `make report-strict` is gate mode.
+
+`apply` anchor mismatch:
+
+- Symptom: `missing_anchors` in output
+- Action: update preset `anchor_regex` to match current RTL, do not patch inserted blocks manually.
+
+Output path confusion:
+
+- No `--out-prefix`: outputs go to `tools/TMA-toolkit/reports/...`
+- With `--out-prefix`: outputs go next to that prefix.
+
+## Extend to New Module (YAML-only)
+
+1. Add `presets/<module>/<preset>.yaml`
+2. Define `instrumentation` and `analysis`
+3. Run `apply` and `report`
+
+```bash
+make -C tools/TMA-toolkit apply PRESET=<module>/<preset>
+make -C tools/TMA-toolkit report PRESET=<module>/<preset> LOG=<log>
+```
+
+Rule:
+
+- Keep toolkit generic.
+- Encode module differences in preset YAML.
+- Do not hand-maintain permanent instrumentation blocks in RTL.
+
+## Command Quick Reference
+
+```bash
+make -C tools/TMA-toolkit sync
+make -C tools/TMA-toolkit list-presets
+make -C tools/TMA-toolkit show-vars PRESET=cute/default LOG=log/emu-error.log
+make -C tools/TMA-toolkit apply PRESET=cute/default
+make -C tools/TMA-toolkit apply-dry PRESET=cute/default
+make -C tools/TMA-toolkit report PRESET=cute/default LOG=log/emu-error.log
+make -C tools/TMA-toolkit report-strict PRESET=cute/default LOG=log/emu-error.log
+make -C tools/TMA-toolkit report-prefix PRESET=cute/default LOG=log/emu-error.log OUT_PREFIX=log/tma-cute
+make -C tools/TMA-toolkit report-prefix-strict PRESET=cute/default LOG=log/emu-error.log OUT_PREFIX=log/tma-cute
+make -C tools/TMA-toolkit report-no-backup PRESET=cute/default LOG=log/emu-error.log
+make -C tools/TMA-toolkit demo
 ```

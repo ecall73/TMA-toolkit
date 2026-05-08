@@ -1,6 +1,5 @@
 version: 2
 name: cute_tma_single_source
-
 instrumentation:
   baseline_ref: origin/master
   repo_root: XSAI/CUTE
@@ -9,117 +8,173 @@ instrumentation:
   cleanup:
     mode: remove_added_vs_baseline
     remove_all_added: true
-
-  targets:
-    - file: src/main/scala/Scoreboard.scala
-      ensure_imports:
-        - utility.XSPerfAccumulate
-      blocks:
-        - id: scoreboard_tma_counters
-          anchor_regex: '^\s*val issueOk = .*'
-          position: after
-          indent: '    '
-          code: |
-            XSPerfAccumulate("CUTE_L2_SB_Block_Dep_SrcNotReady", (io.query.req.valid && recognized && !issueOk) && !srcsReady)
-            XSPerfAccumulate("CUTE_L2_SB_Block_Dep_DestBusy", (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy)
-            XSPerfAccumulate("CUTE_L2_SB_Block_Dep_DestHasConsumers", (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && req.dest.valid && destHasConsumers)
-            XSPerfAccumulate("CUTE_L2_SB_Block_Dep_CMLStoreConsumer", (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && isCMLStore && !storeConsumersOk)
-            XSPerfAccumulate("CUTE_L2_SB_Block_Res_AMLBusy", (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && isAML && !fuFree(ScoreboardFuType.AML))
-            XSPerfAccumulate("CUTE_L2_SB_Block_Res_BMLBusy", (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && isBML && !fuFree(ScoreboardFuType.BML))
-            XSPerfAccumulate("CUTE_L2_SB_Block_Res_CMLLoadBusy", (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && !(isBML && !fuFree(ScoreboardFuType.BML)) && isCMLLoad && !fuFree(ScoreboardFuType.CML))
-            XSPerfAccumulate("CUTE_L2_SB_Block_Res_CMLStoreBusy", (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && !(isBML && !fuFree(ScoreboardFuType.BML)) && !(isCMLLoad && !fuFree(ScoreboardFuType.CML)) && isCMLStore && !fuFree(ScoreboardFuType.CML))
-            XSPerfAccumulate("CUTE_L2_SB_Block_Res_ComputeBusy", (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && !(isBML && !fuFree(ScoreboardFuType.BML)) && !(isCMLLoad && !fuFree(ScoreboardFuType.CML)) && !(isCMLStore && !fuFree(ScoreboardFuType.CML)) && isCompute && !fuFree(ScoreboardFuType.Compute))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_SrcNotReady_By_AML", (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === amlFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === amlFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === amlFuIdConst))))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_SrcNotReady_By_BML", (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === bmlFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === bmlFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === bmlFuIdConst))))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_SrcNotReady_By_CML", (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === cmlFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === cmlFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === cmlFuIdConst))))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_SrcNotReady_By_Compute", (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === computeFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === computeFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === computeFuIdConst))))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_DestBusy_By_AML", (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === amlFuIdConst))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_DestBusy_By_BML", (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === bmlFuIdConst))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_DestBusy_By_CML", (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === cmlFuIdConst))
-            XSPerfAccumulate("CUTE_L3_SB_Dep_DestBusy_By_Compute", (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === computeFuIdConst))
-
-    - file: src/main/scala/TaskController.scala
-      ensure_imports:
-        - utility.XSPerfAccumulate
-      blocks:
-        - id: taskcontroller_tma_counters
-          anchor_regex: '^\s*val issueRelease = issueFire && isRelease\s*$'
-          position: after
-          indent: '  '
-          code: |
-            XSPerfAccumulate("CUTE_L0_TC_HeadValidSlot", headValid)
-            XSPerfAccumulate("CUTE_L0_TC_IssueFire", issueFire)
-            XSPerfAccumulate("CUTE_L1_TC_Stall_Memory", (headValid && !issueFire) && (((needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady) || (needB && !io.BML_MicroTask_Config.MicroTaskReady) || ((needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady) || (isRelease && !releaseReady)))
-            XSPerfAccumulate("CUTE_L1_TC_Stall_Compute", (headValid && !issueFire) && !(((needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady) || (needB && !io.BML_MicroTask_Config.MicroTaskReady) || ((needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady) || (isRelease && !releaseReady)) && (isMma && (!io.ADC_MicroTask_Config.MicroTaskReady || !io.BDC_MicroTask_Config.MicroTaskReady || !io.CDC_MicroTask_Config.MicroTaskReady)))
-            XSPerfAccumulate("CUTE_L1_TC_Stall_Dependency", (headValid && !issueFire) && !(((needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady) || (needB && !io.BML_MicroTask_Config.MicroTaskReady) || ((needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady) || (isRelease && !releaseReady)) && !(isMma && (!io.ADC_MicroTask_Config.MicroTaskReady || !io.BDC_MicroTask_Config.MicroTaskReady || !io.CDC_MicroTask_Config.MicroTaskReady)) && scoreboardReqValid && !scoreboard.io.query.req.ready)
-            XSPerfAccumulate("CUTE_L1_TC_Need_AML", (headValid && !issueFire) && (needA || isMzeroTr))
-            XSPerfAccumulate("CUTE_L1_TC_Need_BML", (headValid && !issueFire) && needB)
-            XSPerfAccumulate("CUTE_L1_TC_Need_CML", (headValid && !issueFire) && (needC || isStore || isMzeroAcc))
-            XSPerfAccumulate("CUTE_L1_TC_Need_ADC", (headValid && !issueFire) && isMma)
-            XSPerfAccumulate("CUTE_L1_TC_Need_BDC", (headValid && !issueFire) && isMma)
-            XSPerfAccumulate("CUTE_L1_TC_Need_CDC", (headValid && !issueFire) && isMma)
-            XSPerfAccumulate("CUTE_L1_TC_Block_AML", (headValid && !issueFire) && (needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady)
-            XSPerfAccumulate("CUTE_L1_TC_Block_BML", (headValid && !issueFire) && needB && !io.BML_MicroTask_Config.MicroTaskReady)
-            XSPerfAccumulate("CUTE_L1_TC_Block_CML", (headValid && !issueFire) && (needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady)
-            XSPerfAccumulate("CUTE_L1_TC_Block_ADC", (headValid && !issueFire) && isMma && !io.ADC_MicroTask_Config.MicroTaskReady)
-            XSPerfAccumulate("CUTE_L1_TC_Block_BDC", (headValid && !issueFire) && isMma && !io.BDC_MicroTask_Config.MicroTaskReady)
-            XSPerfAccumulate("CUTE_L1_TC_Block_CDC", (headValid && !issueFire) && isMma && !io.CDC_MicroTask_Config.MicroTaskReady)
-
+  sites:
+  - id: site_1
+    file: src/main/scala/Scoreboard.scala
+    ensure_imports:
+    - utility.XSPerfAccumulate
+    block_id: scoreboard_tma_counters
+    anchor_regex: ^\s*val issueOk = .*
+    position: after
+    indent: '    '
+  - id: site_2
+    file: src/main/scala/TaskController.scala
+    ensure_imports:
+    - utility.XSPerfAccumulate
+    block_id: taskcontroller_tma_counters
+    anchor_regex: ^\s*val issueRelease = issueFire && isRelease\s*$
+    position: after
+    indent: '  '
+  points:
+  - name: CUTE_L2_SB_Block_Dep_SrcNotReady
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && !srcsReady
+  - name: CUTE_L2_SB_Block_Dep_DestBusy
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy
+  - name: CUTE_L2_SB_Block_Dep_DestHasConsumers
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && req.dest.valid && destHasConsumers
+  - name: CUTE_L2_SB_Block_Dep_CMLStoreConsumer
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && isCMLStore && !storeConsumersOk
+  - name: CUTE_L2_SB_Block_Res_AMLBusy
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && isAML && !fuFree(ScoreboardFuType.AML)
+  - name: CUTE_L2_SB_Block_Res_BMLBusy
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && isBML && !fuFree(ScoreboardFuType.BML)
+  - name: CUTE_L2_SB_Block_Res_CMLLoadBusy
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && !(isBML && !fuFree(ScoreboardFuType.BML)) && isCMLLoad && !fuFree(ScoreboardFuType.CML)
+  - name: CUTE_L2_SB_Block_Res_CMLStoreBusy
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && !(isBML && !fuFree(ScoreboardFuType.BML)) && !(isCMLLoad && !fuFree(ScoreboardFuType.CML)) && isCMLStore && !fuFree(ScoreboardFuType.CML)
+  - name: CUTE_L2_SB_Block_Res_ComputeBusy
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && !(req.dest.valid && destBusy) && !(req.dest.valid && destHasConsumers) && !(isCMLStore && !storeConsumersOk) && !(isAML && !fuFree(ScoreboardFuType.AML)) && !(isBML && !fuFree(ScoreboardFuType.BML)) && !(isCMLLoad && !fuFree(ScoreboardFuType.CML)) && !(isCMLStore && !fuFree(ScoreboardFuType.CML)) && isCompute && !fuFree(ScoreboardFuType.Compute)
+  - name: CUTE_L3_SB_Dep_SrcNotReady_By_AML
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === amlFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === amlFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === amlFuIdConst)))
+  - name: CUTE_L3_SB_Dep_SrcNotReady_By_BML
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === bmlFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === bmlFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === bmlFuIdConst)))
+  - name: CUTE_L3_SB_Dep_SrcNotReady_By_CML
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === cmlFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === cmlFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === cmlFuIdConst)))
+  - name: CUTE_L3_SB_Dep_SrcNotReady_By_Compute
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && !srcsReady && ((req.src1.valid && regBusy(req.src1.bits) && (Mux(req.src1.bits.is_acc, cRegStatus(toAccIdx(req.src1.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src1.bits.regIdx)).fuId) === computeFuIdConst)) || (req.src2.valid && regBusy(req.src2.bits) && (Mux(req.src2.bits.is_acc, cRegStatus(toAccIdx(req.src2.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src2.bits.regIdx)).fuId) === computeFuIdConst)) || (req.src3.valid && regBusy(req.src3.bits) && (Mux(req.src3.bits.is_acc, cRegStatus(toAccIdx(req.src3.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.src3.bits.regIdx)).fuId) === computeFuIdConst)))
+  - name: CUTE_L3_SB_Dep_DestBusy_By_AML
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === amlFuIdConst)
+  - name: CUTE_L3_SB_Dep_DestBusy_By_BML
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === bmlFuIdConst)
+  - name: CUTE_L3_SB_Dep_DestBusy_By_CML
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === cmlFuIdConst)
+  - name: CUTE_L3_SB_Dep_DestBusy_By_Compute
+    site: site_1
+    expr: (io.query.req.valid && recognized && !issueOk) && srcsReady && req.dest.valid && destBusy && (Mux(req.dest.bits.is_acc, cRegStatus(toAccIdx(req.dest.bits.regIdx)).fuId, abRegStatus(toTileIdx(req.dest.bits.regIdx)).fuId) === computeFuIdConst)
+  - name: CUTE_L0_TC_HeadValidSlot
+    site: site_2
+    expr: headValid
+  - name: CUTE_L0_TC_IssueFire
+    site: site_2
+    expr: issueFire
+  - name: CUTE_L1_TC_Stall_Memory
+    site: site_2
+    expr: (headValid && !issueFire) && (((needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady) || (needB && !io.BML_MicroTask_Config.MicroTaskReady) || ((needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady) || (isRelease && !releaseReady))
+  - name: CUTE_L1_TC_Stall_Compute
+    site: site_2
+    expr: (headValid && !issueFire) && !(((needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady) || (needB && !io.BML_MicroTask_Config.MicroTaskReady) || ((needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady) || (isRelease && !releaseReady)) && (isMma && (!io.ADC_MicroTask_Config.MicroTaskReady || !io.BDC_MicroTask_Config.MicroTaskReady || !io.CDC_MicroTask_Config.MicroTaskReady))
+  - name: CUTE_L1_TC_Stall_Dependency
+    site: site_2
+    expr: (headValid && !issueFire) && !(((needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady) || (needB && !io.BML_MicroTask_Config.MicroTaskReady) || ((needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady) || (isRelease && !releaseReady)) && !(isMma && (!io.ADC_MicroTask_Config.MicroTaskReady || !io.BDC_MicroTask_Config.MicroTaskReady || !io.CDC_MicroTask_Config.MicroTaskReady)) && scoreboardReqValid && !scoreboard.io.query.req.ready
+  - name: CUTE_L1_TC_Need_AML
+    site: site_2
+    expr: (headValid && !issueFire) && (needA || isMzeroTr)
+  - name: CUTE_L1_TC_Need_BML
+    site: site_2
+    expr: (headValid && !issueFire) && needB
+  - name: CUTE_L1_TC_Need_CML
+    site: site_2
+    expr: (headValid && !issueFire) && (needC || isStore || isMzeroAcc)
+  - name: CUTE_L1_TC_Need_ADC
+    site: site_2
+    expr: (headValid && !issueFire) && isMma
+  - name: CUTE_L1_TC_Need_BDC
+    site: site_2
+    expr: (headValid && !issueFire) && isMma
+  - name: CUTE_L1_TC_Need_CDC
+    site: site_2
+    expr: (headValid && !issueFire) && isMma
+  - name: CUTE_L1_TC_Block_AML
+    site: site_2
+    expr: (headValid && !issueFire) && (needA || isMzeroTr) && !io.AML_MicroTask_Config.MicroTaskReady
+  - name: CUTE_L1_TC_Block_BML
+    site: site_2
+    expr: (headValid && !issueFire) && needB && !io.BML_MicroTask_Config.MicroTaskReady
+  - name: CUTE_L1_TC_Block_CML
+    site: site_2
+    expr: (headValid && !issueFire) && (needC || isStore || isMzeroAcc) && !io.CML_MicroTask_Config.MicroTaskReady
+  - name: CUTE_L1_TC_Block_ADC
+    site: site_2
+    expr: (headValid && !issueFire) && isMma && !io.ADC_MicroTask_Config.MicroTaskReady
+  - name: CUTE_L1_TC_Block_BDC
+    site: site_2
+    expr: (headValid && !issueFire) && isMma && !io.BDC_MicroTask_Config.MicroTaskReady
+  - name: CUTE_L1_TC_Block_CDC
+    site: site_2
+    expr: (headValid && !issueFire) && isMma && !io.CDC_MicroTask_Config.MicroTaskReady
 analysis:
   parse:
-    line_regex: '^\[PERF \]\[time=\s*(?P<time>\d+)\]\s+[^:]+:\s*(?P<name>CUTE_[A-Za-z0-9_]+),\s*(?P<value>-?\d+)\s*$'
+    line_regex: ^\[PERF \]\[time=\s*(?P<time>\d+)\]\s+[^:]+:\s*(?P<name>CUTE_[A-Za-z0-9_]+),\s*(?P<value>-?\d+)\s*$
     use_last_occurrence: true
     keep_only_declared_direct_counters: true
-
   direct_counters:
-    - CUTE_L0_TC_HeadValidSlot
-    - CUTE_L0_TC_IssueFire
-
-    - CUTE_L1_TC_Stall_Memory
-    - CUTE_L1_TC_Stall_Compute
-    - CUTE_L1_TC_Stall_Dependency
-
-    - CUTE_L1_TC_Need_AML
-    - CUTE_L1_TC_Need_BML
-    - CUTE_L1_TC_Need_CML
-    - CUTE_L1_TC_Need_ADC
-    - CUTE_L1_TC_Need_BDC
-    - CUTE_L1_TC_Need_CDC
-
-    - CUTE_L1_TC_Block_AML
-    - CUTE_L1_TC_Block_BML
-    - CUTE_L1_TC_Block_CML
-    - CUTE_L1_TC_Block_ADC
-    - CUTE_L1_TC_Block_BDC
-    - CUTE_L1_TC_Block_CDC
-
-    - CUTE_L2_SB_Block_Dep_SrcNotReady
-    - CUTE_L2_SB_Block_Dep_DestBusy
-    - CUTE_L2_SB_Block_Dep_DestHasConsumers
-    - CUTE_L2_SB_Block_Dep_CMLStoreConsumer
-    - CUTE_L2_SB_Block_Res_AMLBusy
-    - CUTE_L2_SB_Block_Res_BMLBusy
-    - CUTE_L2_SB_Block_Res_CMLLoadBusy
-    - CUTE_L2_SB_Block_Res_CMLStoreBusy
-    - CUTE_L2_SB_Block_Res_ComputeBusy
-
-    - CUTE_L3_SB_Dep_SrcNotReady_By_AML
-    - CUTE_L3_SB_Dep_SrcNotReady_By_BML
-    - CUTE_L3_SB_Dep_SrcNotReady_By_CML
-    - CUTE_L3_SB_Dep_SrcNotReady_By_Compute
-    - CUTE_L3_SB_Dep_DestBusy_By_AML
-    - CUTE_L3_SB_Dep_DestBusy_By_BML
-    - CUTE_L3_SB_Dep_DestBusy_By_CML
-    - CUTE_L3_SB_Dep_DestBusy_By_Compute
-
+  - CUTE_L0_TC_HeadValidSlot
+  - CUTE_L0_TC_IssueFire
+  - CUTE_L1_TC_Stall_Memory
+  - CUTE_L1_TC_Stall_Compute
+  - CUTE_L1_TC_Stall_Dependency
+  - CUTE_L1_TC_Need_AML
+  - CUTE_L1_TC_Need_BML
+  - CUTE_L1_TC_Need_CML
+  - CUTE_L1_TC_Need_ADC
+  - CUTE_L1_TC_Need_BDC
+  - CUTE_L1_TC_Need_CDC
+  - CUTE_L1_TC_Block_AML
+  - CUTE_L1_TC_Block_BML
+  - CUTE_L1_TC_Block_CML
+  - CUTE_L1_TC_Block_ADC
+  - CUTE_L1_TC_Block_BDC
+  - CUTE_L1_TC_Block_CDC
+  - CUTE_L2_SB_Block_Dep_SrcNotReady
+  - CUTE_L2_SB_Block_Dep_DestBusy
+  - CUTE_L2_SB_Block_Dep_DestHasConsumers
+  - CUTE_L2_SB_Block_Dep_CMLStoreConsumer
+  - CUTE_L2_SB_Block_Res_AMLBusy
+  - CUTE_L2_SB_Block_Res_BMLBusy
+  - CUTE_L2_SB_Block_Res_CMLLoadBusy
+  - CUTE_L2_SB_Block_Res_CMLStoreBusy
+  - CUTE_L2_SB_Block_Res_ComputeBusy
+  - CUTE_L3_SB_Dep_SrcNotReady_By_AML
+  - CUTE_L3_SB_Dep_SrcNotReady_By_BML
+  - CUTE_L3_SB_Dep_SrcNotReady_By_CML
+  - CUTE_L3_SB_Dep_SrcNotReady_By_Compute
+  - CUTE_L3_SB_Dep_DestBusy_By_AML
+  - CUTE_L3_SB_Dep_DestBusy_By_BML
+  - CUTE_L3_SB_Dep_DestBusy_By_CML
+  - CUTE_L3_SB_Dep_DestBusy_By_Compute
   summary_keys:
-    - CUTE_L0_TC_HeadValidSlot
-    - CUTE_L0_TC_IssueFire
-    - CUTE_L0_TC_Stall
-    - CUTE_L1_TC_Stall_Memory
-    - CUTE_L1_TC_Stall_Compute
-    - CUTE_L1_TC_Stall_Dependency
-
+  - CUTE_L0_TC_HeadValidSlot
+  - CUTE_L0_TC_IssueFire
+  - CUTE_L0_TC_Stall
+  - CUTE_L1_TC_Stall_Memory
+  - CUTE_L1_TC_Stall_Compute
+  - CUTE_L1_TC_Stall_Dependency
   derived_counters:
     CUTE_L0_TC_Stall: CUTE_L0_TC_HeadValidSlot - CUTE_L0_TC_IssueFire
     CUTE_L1_TC_Stall_Sum: CUTE_L1_TC_Stall_Memory + CUTE_L1_TC_Stall_Compute + CUTE_L1_TC_Stall_Dependency
@@ -129,127 +184,108 @@ analysis:
     CUTE_L3_SB_Dep_SrcNotReady_By_ComputeAgg: CUTE_L3_SB_Dep_SrcNotReady_By_Compute
     CUTE_L3_SB_Dep_DestBusy_By_Memory: CUTE_L3_SB_Dep_DestBusy_By_AML + CUTE_L3_SB_Dep_DestBusy_By_BML + CUTE_L3_SB_Dep_DestBusy_By_CML
     CUTE_L3_SB_Dep_DestBusy_By_ComputeAgg: CUTE_L3_SB_Dep_DestBusy_By_Compute
-
   consistency_checks:
-    - name: l1_sum_eq_l0_stall
-      lhs: CUTE_L1_TC_Stall_Sum
-      rhs: CUTE_L0_TC_Stall
-      tolerance: 0.0
-      severity: error
-
-    - name: l2_sum_eq_l1_dependency
-      lhs: CUTE_L2_SB_Block_Sum
-      rhs: CUTE_L1_TC_Stall_Dependency
-      tolerance: 0.0
-      severity: error
-
-    - name: aml_block_need_gated
-      expr: CUTE_L1_TC_Block_AML <= CUTE_L1_TC_Need_AML
-      severity: error
-
-    - name: bml_block_need_gated
-      expr: CUTE_L1_TC_Block_BML <= CUTE_L1_TC_Need_BML
-      severity: error
-
-    - name: cml_block_need_gated
-      expr: CUTE_L1_TC_Block_CML <= CUTE_L1_TC_Need_CML
-      severity: error
-
-    - name: adc_block_need_gated
-      expr: CUTE_L1_TC_Block_ADC <= CUTE_L1_TC_Need_ADC
-      severity: error
-
-    - name: bdc_block_need_gated
-      expr: CUTE_L1_TC_Block_BDC <= CUTE_L1_TC_Need_BDC
-      severity: error
-
-    - name: cdc_block_need_gated
-      expr: CUTE_L1_TC_Block_CDC <= CUTE_L1_TC_Need_CDC
-      severity: error
-
+  - name: l1_sum_eq_l0_stall
+    lhs: CUTE_L1_TC_Stall_Sum
+    rhs: CUTE_L0_TC_Stall
+    tolerance: 0.0
+    severity: error
+  - name: l2_sum_eq_l1_dependency
+    lhs: CUTE_L2_SB_Block_Sum
+    rhs: CUTE_L1_TC_Stall_Dependency
+    tolerance: 0.0
+    severity: error
+  - name: aml_block_need_gated
+    expr: CUTE_L1_TC_Block_AML <= CUTE_L1_TC_Need_AML
+    severity: error
+  - name: bml_block_need_gated
+    expr: CUTE_L1_TC_Block_BML <= CUTE_L1_TC_Need_BML
+    severity: error
+  - name: cml_block_need_gated
+    expr: CUTE_L1_TC_Block_CML <= CUTE_L1_TC_Need_CML
+    severity: error
+  - name: adc_block_need_gated
+    expr: CUTE_L1_TC_Block_ADC <= CUTE_L1_TC_Need_ADC
+    severity: error
+  - name: bdc_block_need_gated
+    expr: CUTE_L1_TC_Block_BDC <= CUTE_L1_TC_Need_BDC
+    severity: error
+  - name: cdc_block_need_gated
+    expr: CUTE_L1_TC_Block_CDC <= CUTE_L1_TC_Need_CDC
+    severity: error
   hierarchy:
-    - parent: CUTE_L0_TC_Stall
-      children:
-        - CUTE_L1_TC_Stall_Memory
-        - CUTE_L1_TC_Stall_Compute
-        - CUTE_L1_TC_Stall_Dependency
-
-    - parent: CUTE_L1_TC_Stall_Memory
-      children:
-        - CUTE_L1_TC_Block_AML
-        - CUTE_L1_TC_Block_BML
-        - CUTE_L1_TC_Block_CML
-        - CUTE_L2_Memory_Remain
-
-    - parent: CUTE_L1_TC_Stall_Compute
-      children:
-        - CUTE_L1_TC_Block_ADC
-        - CUTE_L1_TC_Block_BDC
-        - CUTE_L1_TC_Block_CDC
-
-    - parent: CUTE_L1_TC_Stall_Dependency
-      children:
-        - CUTE_L2_SB_Block_Dep_SrcNotReady
-        - CUTE_L2_SB_Block_Dep_DestBusy
-        - CUTE_L2_SB_Block_Dep_DestHasConsumers
-        - CUTE_L2_SB_Block_Dep_CMLStoreConsumer
-        - CUTE_L2_SB_Block_Res_AMLBusy
-        - CUTE_L2_SB_Block_Res_BMLBusy
-        - CUTE_L2_SB_Block_Res_CMLLoadBusy
-        - CUTE_L2_SB_Block_Res_CMLStoreBusy
-        - CUTE_L2_SB_Block_Res_ComputeBusy
-
+  - parent: CUTE_L0_TC_Stall
+    children:
+    - CUTE_L1_TC_Stall_Memory
+    - CUTE_L1_TC_Stall_Compute
+    - CUTE_L1_TC_Stall_Dependency
+  - parent: CUTE_L1_TC_Stall_Memory
+    children:
+    - CUTE_L1_TC_Block_AML
+    - CUTE_L1_TC_Block_BML
+    - CUTE_L1_TC_Block_CML
+    - CUTE_L2_Memory_Remain
+  - parent: CUTE_L1_TC_Stall_Compute
+    children:
+    - CUTE_L1_TC_Block_ADC
+    - CUTE_L1_TC_Block_BDC
+    - CUTE_L1_TC_Block_CDC
+  - parent: CUTE_L1_TC_Stall_Dependency
+    children:
+    - CUTE_L2_SB_Block_Dep_SrcNotReady
+    - CUTE_L2_SB_Block_Dep_DestBusy
+    - CUTE_L2_SB_Block_Dep_DestHasConsumers
+    - CUTE_L2_SB_Block_Dep_CMLStoreConsumer
+    - CUTE_L2_SB_Block_Res_AMLBusy
+    - CUTE_L2_SB_Block_Res_BMLBusy
+    - CUTE_L2_SB_Block_Res_CMLLoadBusy
+    - CUTE_L2_SB_Block_Res_CMLStoreBusy
+    - CUTE_L2_SB_Block_Res_ComputeBusy
   chart_groups_abs:
-    - name: L1
-      ratio_parent: CUTE_L0_TC_Stall
-      counters:
-        - CUTE_L1_TC_Stall_Memory
-        - CUTE_L1_TC_Stall_Compute
-        - CUTE_L1_TC_Stall_Dependency
-
-    - name: L1_Memory
-      ratio_parent: CUTE_L1_TC_Stall_Memory
-      counters:
-        - CUTE_L1_TC_Block_AML
-        - CUTE_L1_TC_Block_BML
-        - CUTE_L1_TC_Block_CML
-        - CUTE_L2_Memory_Remain
-
-    - name: L1_Compute
-      ratio_parent: CUTE_L1_TC_Stall_Compute
-      counters:
-        - CUTE_L1_TC_Block_ADC
-        - CUTE_L1_TC_Block_BDC
-        - CUTE_L1_TC_Block_CDC
-
-    - name: L1_Dependency
-      ratio_parent: CUTE_L1_TC_Stall_Dependency
-      counters:
-        - CUTE_L2_SB_Block_Dep_SrcNotReady
-        - CUTE_L2_SB_Block_Dep_DestBusy
-        - CUTE_L2_SB_Block_Dep_DestHasConsumers
-        - CUTE_L2_SB_Block_Dep_CMLStoreConsumer
-        - CUTE_L2_SB_Block_Res_AMLBusy
-        - CUTE_L2_SB_Block_Res_BMLBusy
-        - CUTE_L2_SB_Block_Res_CMLLoadBusy
-        - CUTE_L2_SB_Block_Res_CMLStoreBusy
-        - CUTE_L2_SB_Block_Res_ComputeBusy
-
-    - name: L2_Dep_SrcNotReady
-      ratio_parent: CUTE_L2_SB_Block_Dep_SrcNotReady
-      counters:
-        - CUTE_L3_SB_Dep_SrcNotReady_By_AML
-        - CUTE_L3_SB_Dep_SrcNotReady_By_BML
-        - CUTE_L3_SB_Dep_SrcNotReady_By_CML
-        - CUTE_L3_SB_Dep_SrcNotReady_By_Compute
-
+  - name: L1
+    ratio_parent: CUTE_L0_TC_Stall
+    counters:
+    - CUTE_L1_TC_Stall_Memory
+    - CUTE_L1_TC_Stall_Compute
+    - CUTE_L1_TC_Stall_Dependency
+  - name: L1_Memory
+    ratio_parent: CUTE_L1_TC_Stall_Memory
+    counters:
+    - CUTE_L1_TC_Block_AML
+    - CUTE_L1_TC_Block_BML
+    - CUTE_L1_TC_Block_CML
+    - CUTE_L2_Memory_Remain
+  - name: L1_Compute
+    ratio_parent: CUTE_L1_TC_Stall_Compute
+    counters:
+    - CUTE_L1_TC_Block_ADC
+    - CUTE_L1_TC_Block_BDC
+    - CUTE_L1_TC_Block_CDC
+  - name: L1_Dependency
+    ratio_parent: CUTE_L1_TC_Stall_Dependency
+    counters:
+    - CUTE_L2_SB_Block_Dep_SrcNotReady
+    - CUTE_L2_SB_Block_Dep_DestBusy
+    - CUTE_L2_SB_Block_Dep_DestHasConsumers
+    - CUTE_L2_SB_Block_Dep_CMLStoreConsumer
+    - CUTE_L2_SB_Block_Res_AMLBusy
+    - CUTE_L2_SB_Block_Res_BMLBusy
+    - CUTE_L2_SB_Block_Res_CMLLoadBusy
+    - CUTE_L2_SB_Block_Res_CMLStoreBusy
+    - CUTE_L2_SB_Block_Res_ComputeBusy
+  - name: L2_Dep_SrcNotReady
+    ratio_parent: CUTE_L2_SB_Block_Dep_SrcNotReady
+    counters:
+    - CUTE_L3_SB_Dep_SrcNotReady_By_AML
+    - CUTE_L3_SB_Dep_SrcNotReady_By_BML
+    - CUTE_L3_SB_Dep_SrcNotReady_By_CML
+    - CUTE_L3_SB_Dep_SrcNotReady_By_Compute
   plot:
     title: CUTE Counters (Value; ratio shown above each bar)
     baseline_counter: CUTE_L0_TC_Stall
     baseline_label: L0 Stall Ref
     ratio_decimals: 3
     group_gap: 0.9
-
   display_aliases:
     CUTE_L1_TC_Stall_Memory: L1_Memory
     CUTE_L1_TC_Stall_Compute: L1_Compute

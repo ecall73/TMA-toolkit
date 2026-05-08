@@ -29,31 +29,11 @@ class ApplyStats:
 
 
 def load_yaml(path: Path) -> dict:
-    seen: Set[Path] = set()
-    cur = path.resolve()
-    while True:
-        if cur in seen:
-            raise ValueError(f"Cyclic spec redirect detected: {cur}")
-        seen.add(cur)
-
-        with cur.open("r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        if not isinstance(data, dict):
-            raise ValueError(f"Spec must be a mapping: {cur}")
-
-        redirect_to = data.get("redirect_to")
-        has_tma_content = isinstance(data.get("instrumentation"), dict) or isinstance(data.get("analysis"), dict)
-        if not isinstance(redirect_to, str) or has_tma_content:
-            return data
-
-        nxt = Path(redirect_to)
-        if not nxt.is_absolute():
-            nxt = (cur.parent / nxt).resolve()
-        else:
-            nxt = nxt.resolve()
-        if not nxt.exists():
-            raise FileNotFoundError(f"redirect_to target not found: {redirect_to} (from {cur})")
-        cur = nxt
+    with path.resolve().open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Spec must be a mapping: {path}")
+    return data
 
 
 def run_cmd(cmd: Sequence[str], cwd: Optional[Path] = None) -> str:
@@ -210,65 +190,62 @@ def file_rel(path: Path, root: Path) -> str:
 def build_targets(inst: dict) -> List[dict]:
     sites = inst.get("sites")
     points = inst.get("points")
-    if isinstance(sites, list) and isinstance(points, list):
-        site_map: Dict[str, dict] = {}
-        ordered_site_ids: List[str] = []
-        for s in sites:
-            if not isinstance(s, dict):
-                continue
-            sid = s.get("id")
-            if not sid:
-                raise ValueError("instrumentation.sites[].id is required")
-            sid = str(sid)
-            if sid in site_map:
-                raise ValueError(f"Duplicated site id: {sid}")
-            if not s.get("file"):
-                raise ValueError(f"site {sid} missing file")
-            if not s.get("anchor_regex"):
-                raise ValueError(f"site {sid} missing anchor_regex")
-            site_map[sid] = s
-            ordered_site_ids.append(sid)
+    if not isinstance(sites, list) or not isinstance(points, list):
+        raise ValueError("instrumentation.sites and instrumentation.points are required")
 
-        lines_by_site: Dict[str, List[str]] = {sid: [] for sid in ordered_site_ids}
-        for p in points:
-            if not isinstance(p, dict):
-                continue
-            name = p.get("name")
-            expr = p.get("expr")
-            sid = p.get("site")
-            if not name or not expr or not sid:
-                raise ValueError("instrumentation.points[] requires name, expr, site")
-            sid = str(sid)
-            if sid not in site_map:
-                raise ValueError(f"point {name} references unknown site: {sid}")
-            lines_by_site[sid].append(f'XSPerfAccumulate("{name}", {expr})')
+    site_map: Dict[str, dict] = {}
+    ordered_site_ids: List[str] = []
+    for s in sites:
+        if not isinstance(s, dict):
+            continue
+        sid = s.get("id")
+        if not sid:
+            raise ValueError("instrumentation.sites[].id is required")
+        sid = str(sid)
+        if sid in site_map:
+            raise ValueError(f"Duplicated site id: {sid}")
+        if not s.get("file"):
+            raise ValueError(f"site {sid} missing file")
+        if not s.get("anchor_regex"):
+            raise ValueError(f"site {sid} missing anchor_regex")
+        site_map[sid] = s
+        ordered_site_ids.append(sid)
 
-        targets: List[dict] = []
-        for sid in ordered_site_ids:
-            s = site_map[sid]
-            lines = lines_by_site.get(sid, [])
-            if not lines:
-                continue
-            targets.append(
-                {
-                    "file": s["file"],
-                    "ensure_imports": list(s.get("ensure_imports", [])),
-                    "blocks": [
-                        {
-                            "id": s.get("block_id", f"auto_xsperf_{sid}"),
-                            "anchor_regex": s["anchor_regex"],
-                            "position": s.get("position", "after"),
-                            "indent": s.get("indent", ""),
-                            "code": "\n".join(lines),
-                        }
-                    ],
-                }
-            )
-        return targets
+    lines_by_site: Dict[str, List[str]] = {sid: [] for sid in ordered_site_ids}
+    for p in points:
+        if not isinstance(p, dict):
+            continue
+        name = p.get("name")
+        expr = p.get("expr")
+        sid = p.get("site")
+        if not name or not expr or not sid:
+            raise ValueError("instrumentation.points[] requires name, expr, site")
+        sid = str(sid)
+        if sid not in site_map:
+            raise ValueError(f"point {name} references unknown site: {sid}")
+        lines_by_site[sid].append(f'XSPerfAccumulate("{name}", {expr})')
 
-    targets = inst.get("targets", [])
-    if not isinstance(targets, list):
-        raise ValueError("instrumentation.targets must be a list")
+    targets: List[dict] = []
+    for sid in ordered_site_ids:
+        s = site_map[sid]
+        lines = lines_by_site.get(sid, [])
+        if not lines:
+            continue
+        targets.append(
+            {
+                "file": s["file"],
+                "ensure_imports": list(s.get("ensure_imports", [])),
+                "blocks": [
+                    {
+                        "id": s.get("block_id", f"auto_xsperf_{sid}"),
+                        "anchor_regex": s["anchor_regex"],
+                        "position": s.get("position", "after"),
+                        "indent": s.get("indent", ""),
+                        "code": "\n".join(lines),
+                    }
+                ],
+            }
+        )
     return targets
 
 
@@ -416,16 +393,16 @@ def apply(spec_path: Path, dry_run: bool, baseline_ref_override: Optional[str], 
 
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Apply TMA instrumentation to CUTE RTL")
-    p.add_argument("--spec", type=Path, required=True, help="Path to TMA spec.yaml")
+    p.add_argument("--preset-file", type=Path, required=True, help="Path to preset YAML file")
     p.add_argument("--dry-run", action="store_true", help="Show diff preview without writing files")
-    p.add_argument("--baseline-ref", type=str, default=None, help="Override baseline git ref (default from spec)")
-    p.add_argument("--repo-root", type=str, default=None, help="Override CUTE repo root (default from spec)")
+    p.add_argument("--baseline-ref", type=str, default=None, help="Override baseline git ref (default from preset)")
+    p.add_argument("--repo-root", type=str, default=None, help="Override CUTE repo root (default from preset)")
     return p
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_argparser().parse_args(argv)
-    return apply(args.spec, args.dry_run, args.baseline_ref, args.repo_root)
+    return apply(args.preset_file, args.dry_run, args.baseline_ref, args.repo_root)
 
 
 if __name__ == "__main__":

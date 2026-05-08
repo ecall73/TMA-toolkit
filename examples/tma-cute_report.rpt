@@ -1,0 +1,100 @@
+# TMA Structured Report (RPT)
+
+[META]
+spec=/nfs/home/lizhiheng/xsai-env/tools/TMA-toolkit/presets/cute/default.yaml
+log=/nfs/home/lizhiheng/xsai-env/tools/TMA-toolkit/examples/emu-error.default.log
+preset=cute/default
+run_id=N/A
+sample_time=554135
+generated_at_utc=2026-05-08T19:36:23.806683+00:00
+arguments=report --preset cute/default --log tools/TMA-toolkit/examples/emu-error.default.log --out-prefix tools/TMA-toolkit/examples/tma-cute
+
+[KEY_VALUES]
+CUTE_L0_TC_HeadValidSlot=83723.0
+CUTE_L0_TC_IssueFire=91.0
+CUTE_L0_TC_Stall=83632.0
+CUTE_L1_TC_Stall_Memory=36537.0
+CUTE_L1_TC_Stall_Compute=521.0
+CUTE_L1_TC_Stall_Dependency=46574.0
+direct_counter_count=34
+fallback_counter_count=0
+unresolved_missing_count=0
+
+[CONSISTENCY]
+name|status|severity|detail
+l1_sum_eq_l0_stall|PASS|error|lhs=83632.0 rhs=83632.0 diff=0.0 tol=0.0
+l2_sum_eq_l1_dependency|FAIL|error|lhs=73327.0 rhs=46574.0 diff=26753.0 tol=0.0
+aml_block_need_gated|PASS|error|expr=CUTE_L1_TC_Block_AML <= CUTE_L1_TC_Need_AML
+bml_block_need_gated|PASS|error|expr=CUTE_L1_TC_Block_BML <= CUTE_L1_TC_Need_BML
+cml_block_need_gated|PASS|error|expr=CUTE_L1_TC_Block_CML <= CUTE_L1_TC_Need_CML
+adc_block_need_gated|PASS|error|expr=CUTE_L1_TC_Block_ADC <= CUTE_L1_TC_Need_ADC
+bdc_block_need_gated|PASS|error|expr=CUTE_L1_TC_Block_BDC <= CUTE_L1_TC_Need_BDC
+cdc_block_need_gated|PASS|error|expr=CUTE_L1_TC_Block_CDC <= CUTE_L1_TC_Need_CDC
+
+[TREE_VIEW]
+parent|parent_value|child|child_label|child_value|ratio_to_parent
+CUTE_L0_TC_Stall|83632.0|CUTE_L1_TC_Stall_Memory|L1_Memory|36537.0|0.43687822842930935
+CUTE_L0_TC_Stall|83632.0|CUTE_L1_TC_Stall_Compute|L1_Compute|521.0|0.006229672852496652
+CUTE_L0_TC_Stall|83632.0|CUTE_L1_TC_Stall_Dependency|L1_Dependency|46574.0|0.556892098718194
+CUTE_L1_TC_Stall_Memory|36537.0|CUTE_L1_TC_Block_AML|CUTE_L1_TC_Block_AML|0.0|0.0
+CUTE_L1_TC_Stall_Memory|36537.0|CUTE_L1_TC_Block_BML|CUTE_L1_TC_Block_BML|0.0|0.0
+CUTE_L1_TC_Stall_Memory|36537.0|CUTE_L1_TC_Block_CML|CUTE_L1_TC_Block_CML|26232.0|0.7179571393382052
+CUTE_L1_TC_Stall_Memory|36537.0|CUTE_L2_Memory_Remain|L2_Memory_Remain|10305.0|0.2820428606617949
+CUTE_L1_TC_Stall_Compute|521.0|CUTE_L1_TC_Block_ADC|L2_Compute_ADC|515.0|0.9884836852207294
+CUTE_L1_TC_Stall_Compute|521.0|CUTE_L1_TC_Block_BDC|L2_Compute_BDC|515.0|0.9884836852207294
+CUTE_L1_TC_Stall_Compute|521.0|CUTE_L1_TC_Block_CDC|L2_Compute_CDC|521.0|1.0
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Dep_SrcNotReady|L2_Dep_SrcNotReady|47095.0|1.0111864989049684
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Dep_DestBusy|L2_Dep_DestBusy|0.0|0.0
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Dep_DestHasConsumers|L2_Dep_DestHasConsumers|0.0|0.0
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Dep_CMLStoreConsumer|L2_Dep_CMLStoreConsumer|0.0|0.0
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Res_AMLBusy|L2_FUBusy_AML|0.0|0.0
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Res_BMLBusy|L2_FUBusy_BML|0.0|0.0
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Res_CMLLoadBusy|L2_FUBusy_CMLLoad|26232.0|0.5632327049426719
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Res_CMLStoreBusy|L2_FUBusy_CMLStore|0.0|0.0
+CUTE_L1_TC_Stall_Dependency|46574.0|CUTE_L2_SB_Block_Res_ComputeBusy|L2_FUBusy_Compute|0.0|0.0
+
+[CHART_GROUP_VIEW]
+group|counter|label|value|group_parent|ratio_to_group_parent|hierarchy_parent|ratio_to_hierarchy_parent
+L1|CUTE_L1_TC_Stall_Memory|L1_Memory|36537.0|CUTE_L0_TC_Stall|0.43687822842930935|CUTE_L0_TC_Stall|0.43687822842930935
+L1|CUTE_L1_TC_Stall_Compute|L1_Compute|521.0|CUTE_L0_TC_Stall|0.006229672852496652|CUTE_L0_TC_Stall|0.006229672852496652
+L1|CUTE_L1_TC_Stall_Dependency|L1_Dependency|46574.0|CUTE_L0_TC_Stall|0.556892098718194|CUTE_L0_TC_Stall|0.556892098718194
+L1_Memory|CUTE_L1_TC_Block_AML|CUTE_L1_TC_Block_AML|0.0|CUTE_L1_TC_Stall_Memory|0.0|CUTE_L1_TC_Stall_Memory|0.0
+L1_Memory|CUTE_L1_TC_Block_BML|CUTE_L1_TC_Block_BML|0.0|CUTE_L1_TC_Stall_Memory|0.0|CUTE_L1_TC_Stall_Memory|0.0
+L1_Memory|CUTE_L1_TC_Block_CML|CUTE_L1_TC_Block_CML|26232.0|CUTE_L1_TC_Stall_Memory|0.7179571393382052|CUTE_L1_TC_Stall_Memory|0.7179571393382052
+L1_Memory|CUTE_L2_Memory_Remain|L2_Memory_Remain|10305.0|CUTE_L1_TC_Stall_Memory|0.2820428606617949|CUTE_L1_TC_Stall_Memory|0.2820428606617949
+L1_Compute|CUTE_L1_TC_Block_ADC|L2_Compute_ADC|515.0|CUTE_L1_TC_Stall_Compute|0.9884836852207294|CUTE_L1_TC_Stall_Compute|0.9884836852207294
+L1_Compute|CUTE_L1_TC_Block_BDC|L2_Compute_BDC|515.0|CUTE_L1_TC_Stall_Compute|0.9884836852207294|CUTE_L1_TC_Stall_Compute|0.9884836852207294
+L1_Compute|CUTE_L1_TC_Block_CDC|L2_Compute_CDC|521.0|CUTE_L1_TC_Stall_Compute|1.0|CUTE_L1_TC_Stall_Compute|1.0
+L1_Dependency|CUTE_L2_SB_Block_Dep_SrcNotReady|L2_Dep_SrcNotReady|47095.0|CUTE_L1_TC_Stall_Dependency|1.0111864989049684|CUTE_L1_TC_Stall_Dependency|1.0111864989049684
+L1_Dependency|CUTE_L2_SB_Block_Dep_DestBusy|L2_Dep_DestBusy|0.0|CUTE_L1_TC_Stall_Dependency|0.0|CUTE_L1_TC_Stall_Dependency|0.0
+L1_Dependency|CUTE_L2_SB_Block_Dep_DestHasConsumers|L2_Dep_DestHasConsumers|0.0|CUTE_L1_TC_Stall_Dependency|0.0|CUTE_L1_TC_Stall_Dependency|0.0
+L1_Dependency|CUTE_L2_SB_Block_Dep_CMLStoreConsumer|L2_Dep_CMLStoreConsumer|0.0|CUTE_L1_TC_Stall_Dependency|0.0|CUTE_L1_TC_Stall_Dependency|0.0
+L1_Dependency|CUTE_L2_SB_Block_Res_AMLBusy|L2_FUBusy_AML|0.0|CUTE_L1_TC_Stall_Dependency|0.0|CUTE_L1_TC_Stall_Dependency|0.0
+L1_Dependency|CUTE_L2_SB_Block_Res_BMLBusy|L2_FUBusy_BML|0.0|CUTE_L1_TC_Stall_Dependency|0.0|CUTE_L1_TC_Stall_Dependency|0.0
+L1_Dependency|CUTE_L2_SB_Block_Res_CMLLoadBusy|L2_FUBusy_CMLLoad|26232.0|CUTE_L1_TC_Stall_Dependency|0.5632327049426719|CUTE_L1_TC_Stall_Dependency|0.5632327049426719
+L1_Dependency|CUTE_L2_SB_Block_Res_CMLStoreBusy|L2_FUBusy_CMLStore|0.0|CUTE_L1_TC_Stall_Dependency|0.0|CUTE_L1_TC_Stall_Dependency|0.0
+L1_Dependency|CUTE_L2_SB_Block_Res_ComputeBusy|L2_FUBusy_Compute|0.0|CUTE_L1_TC_Stall_Dependency|0.0|CUTE_L1_TC_Stall_Dependency|0.0
+L2_Dep_SrcNotReady|CUTE_L3_SB_Dep_SrcNotReady_By_AML|L3_Src_By_AML|6230.0|CUTE_L2_SB_Block_Dep_SrcNotReady|0.13228580528718548||nan
+L2_Dep_SrcNotReady|CUTE_L3_SB_Dep_SrcNotReady_By_BML|L3_Src_By_BML|3183.0|CUTE_L2_SB_Block_Dep_SrcNotReady|0.06758679265314789||nan
+L2_Dep_SrcNotReady|CUTE_L3_SB_Dep_SrcNotReady_By_CML|L3_Src_By_CML|37717.0|CUTE_L2_SB_Block_Dep_SrcNotReady|0.8008705807410553||nan
+L2_Dep_SrcNotReady|CUTE_L3_SB_Dep_SrcNotReady_By_Compute|L3_Src_By_Compute|9378.0|CUTE_L2_SB_Block_Dep_SrcNotReady|0.19912941925894467||nan
+
+[TOP_CONTRIBUTORS]
+baseline_counter=CUTE_L0_TC_Stall
+baseline_value=83632.0
+rank|counter|label|value|ratio_to_baseline
+1|CUTE_L0_TC_Stall|CUTE_L0_TC_Stall|83632.0|1.0
+2|CUTE_L2_SB_Block_Dep_SrcNotReady|L2_Dep_SrcNotReady|47095.0|0.5631217715706907
+3|CUTE_L1_TC_Stall_Dependency|L1_Dependency|46574.0|0.556892098718194
+4|CUTE_L3_SB_Dep_SrcNotReady_By_CML|L3_Src_By_CML|37717.0|0.45098766022575093
+5|CUTE_L1_TC_Stall_Memory|L1_Memory|36537.0|0.43687822842930935
+6|CUTE_L1_TC_Block_CML|CUTE_L1_TC_Block_CML|26232.0|0.31365984312224987
+7|CUTE_L2_SB_Block_Res_CMLLoadBusy|L2_FUBusy_CMLLoad|26232.0|0.31365984312224987
+8|CUTE_L2_Memory_Remain|L2_Memory_Remain|10305.0|0.1232183853070595
+9|CUTE_L3_SB_Dep_SrcNotReady_By_Compute|L3_Src_By_Compute|9378.0|0.11213411134493974
+10|CUTE_L3_SB_Dep_SrcNotReady_By_AML|L3_Src_By_AML|6230.0|0.07449301702697532
+
+[DIAGNOSTIC_NOTES]
+- failed_consistency_checks=1
+- check_fail:l2_sum_eq_l1_dependency:lhs=73327.0 rhs=46574.0 diff=26753.0 tol=0.0
+- ratio_gt_1:CUTE_L2_SB_Block_Dep_SrcNotReady/parent=CUTE_L1_TC_Stall_Dependency:ratio=1.0111864989049684

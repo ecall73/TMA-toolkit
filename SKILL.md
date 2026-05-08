@@ -7,94 +7,116 @@ description: Guide for using tools/TMA-toolkit to apply XSPerfAccumulate instrum
 
 当任务是“基于 YAML 自动插桩 + 从仿真日志自动分析/作图”时，使用本技能。
 
-适用范围：
+## 前置要求
+
+- 使用 UV 管理环境与执行命令（无需 sudo）：
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --project tools/TMA-toolkit
+```
+
+- 优先使用 Make 入口，保证参数和目录行为一致：
+
+```bash
+make -C tools/TMA-toolkit help
+```
+
+## 适用范围
+
 - `tools/TMA-toolkit/`
 - `tools/TMA-toolkit/presets/`
 - `tools/TMA-toolkit/reports/`
+- `tools/TMA-toolkit/examples/`
 
-## 目标
+## Demo-first 工作流
 
-- 通过 `preset` 驱动，不手改 Scala 插桩逻辑
-- 使用同一份 YAML 同时定义：
-  - 插桩规则（`instrumentation`）
-  - 分析与出图规则（`analysis`）
+在接触真实大日志前，先用仓库内示例验证工具链、口径和输出形态：
+
+```bash
+uv run --project tools/TMA-toolkit tma-toolkit report \
+  --preset cute/default \
+  --log tools/TMA-toolkit/examples/emu-error.default.log \
+  --out-prefix tools/TMA-toolkit/examples/tma-cute
+```
+
+核对点：
+
+- `examples/tma-cute_values.csv`
+- `examples/tma-cute_consistency.json`
+- `examples/tma-cute_report.rpt`
+
+再切换到真实日志执行分析：
+
+```bash
+uv run --project tools/TMA-toolkit tma-toolkit report --preset <module>/<preset> --log <emu-log>
+```
 
 ## 标准流程
 
-1. 选择 preset（例如 `cute/default` 或 `cute/legacy_27ac003_4cdc89a`）。
-2. 执行 `apply`（可先 `--dry-run`）。
-3. 运行既有仿真流程（`make run-emu ...`）。
-4. 执行 `report` 生成 CSV/PNG/MD/JSON/RPT。
+1. 选择 preset（例如 `cute/default`）
+2. 执行 `apply`（建议先 `--dry-run`）
+3. 运行仿真（沿用 `make run-emu ...`）
+4. 执行 `report` 生成 `CSV/PNG/MD/JSON/RPT`
 
-推荐命令：
-
-```bash
-python3 tools/TMA-toolkit/tma.py apply --preset <module>/<preset> --dry-run
-python3 tools/TMA-toolkit/tma.py apply --preset <module>/<preset>
-python3 tools/TMA-toolkit/tma.py report --preset <module>/<preset> --log <emu-log>
-```
-
-Makefile 等价命令：
+推荐 Make 命令：
 
 ```bash
+make -C tools/TMA-toolkit apply-dry PRESET=<module>/<preset>
 make -C tools/TMA-toolkit apply PRESET=<module>/<preset>
 make -C tools/TMA-toolkit report PRESET=<module>/<preset> LOG=<log-path>
+make -C tools/TMA-toolkit report-strict PRESET=<module>/<preset> LOG=<log-path>
 ```
 
-## RPT-first 分析方法（给 Agent）
+等价底层命令（需要时）：
 
-`report` 会自动导出结构化 `report.rpt`（或 `<prefix>_report.rpt`）。  
-当 Agent 需要做性能分析时，优先采用以下顺序：
+```bash
+uv run --project tools/TMA-toolkit tma-toolkit apply --preset <module>/<preset> --dry-run
+uv run --project tools/TMA-toolkit tma-toolkit apply --preset <module>/<preset>
+uv run --project tools/TMA-toolkit tma-toolkit report --preset <module>/<preset> --log <emu-log>
+```
 
-1. 先读 `report.rpt`：
-  - `META`：确认 spec/log/run_id 是否正确。
-  - `CONSISTENCY`：先定位 FAIL 检查项。
-  - `TOP_CONTRIBUTORS`：快速锁定高贡献项。
-  - `TREE_VIEW` / `CHART_GROUP_VIEW`：按层级和分组还原图中信息。
-2. 再读 `values.csv`：做精细数值复核或二次计算。
-3. 最后看 `combined.png`：仅作为视觉确认，不作为唯一信息源。
+常用扩展目标：
 
-禁止仅依赖图片/OCR进行结论输出；默认以 `.rpt` 为主、图像为辅。
+```bash
+make -C tools/TMA-toolkit report-prefix PRESET=<module>/<preset> LOG=<log> OUT_PREFIX=log/tma-out
+make -C tools/TMA-toolkit report-no-backup PRESET=<module>/<preset> LOG=<log>
+make -C tools/TMA-toolkit show-vars PRESET=<module>/<preset> LOG=<log>
+make -C tools/TMA-toolkit demo
+```
+
+退出语义约束：
+
+- `report` / `report-prefix` / `report-no-backup` 是容错模式（始终返回 0）。
+- `report-strict` / `report-prefix-strict` / `report-no-backup-strict` 是门禁模式（一致性失败返回非 0）。
+
+## RPT-first 分析方法
+
+Agent 分析时默认顺序：
+
+1. 先读 `report.rpt`
+2. 再读 `values.csv`
+3. 最后看 `combined.png`
+
+RPT 重点字段：
+
+- `META`：spec/log/run_id
+- `CONSISTENCY`：先看 FAIL 项
+- `TOP_CONTRIBUTORS`：快速定位大头
+- `TREE_VIEW` / `CHART_GROUP_VIEW`：还原分层关系
+
+禁止仅依赖图片/OCR下结论。图像用于确认，不是唯一信息源。
+
+## PR/评审结论输出约束
+
+- 有 `examples/tma-cute_report.rpt` 时，优先引用 RPT/CSV 的数值证据。
+- 明确区分“结果现象”和“一致性检查状态”。
+- `report-strict`（或底层 `report --strict`）非零返回时，不等于工具故障；先核对 `consistency.json` 与 RPT。
 
 ## 关键约束
 
-- 插桩应通过 TMA-toolkit 工具落地，不建议手工改 `XSPerfAccumulate`。
-- `accumulate_only` 策略下，插入块应仅包含 `XSPerfAccumulate(...)` 行。
-- 更改计数器口径时，优先修改 preset YAML，而不是改 Python 逻辑。
-- 做历史口径复现时，确保 `direct_counters / derived_counters / hierarchy / chart_groups_abs / display_aliases` 同步更新。
-
-## 常见任务模板
-
-### A. 新增一个计数器口径（同模块）
-
-1. 在对应 preset 的 `instrumentation.points` 增加 `name/expr/site`。
-2. 在 `analysis.direct_counters` 注册该计数器。
-3. 必要时更新 `derived_counters`、`hierarchy`、`chart_groups_abs`、`display_aliases`。
-4. 用固定日志回放并验证结果稳定。
-
-### B. 复刻历史版本口径
-
-1. 从目标提交提取 `XSPerfAccumulate` 名称与表达式。
-2. 新建独立 legacy preset（不要覆盖 default）。
-3. 通过 `report --out-prefix` 与历史 CSV/PNG 对比集合与数值。
-
-### C. 只做分析不改代码
-
-直接执行 `report`，不执行 `apply`。
-
-## 验证建议
-
-- 插桩验证：
-  - `apply --dry-run` 检查 `missing_anchors`。
-  - 重复执行 `apply`，第二次应无新增叠加。
-- 分析验证：
-  - 对比历史基线 CSV 的计数项集合和数值。
-  - 检查 `consistency.json` 与报告中的一致性检查项。
-  - 检查 `report.rpt` 与 `values.csv`/`combined.png` 的分组与比率一致性。
-
-## 易错点
-
-- 误用 `--out-prefix` 导致输出在 `log/`，而非 `tools/TMA-toolkit/reports/`。
-- 只改 `instrumentation` 不改 `analysis`，导致图表缺项或口径不闭合。
-- 改了 `preset` 却仍在用旧 `run-id` 对比，误判结果。
-- 只看图不看 `report.rpt`，忽略结构化诊断信息（检查失败、Top贡献项、父子比率）。
+- 插桩通过 TMA-toolkit 落地，不手工维护插桩块。
+- `accumulate_only` 口径下，插入块仅包含 `XSPerfAccumulate(...)`。
+- preset 插桩格式为 `instrumentation.sites + instrumentation.points`。
+- 口径变更优先改 preset YAML，而不是改 Python 工具逻辑。

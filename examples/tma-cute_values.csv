@@ -1,0 +1,66 @@
+row_type,counter,kind,value,formula,parent,ratio_in_parent
+counter,CUTE_L0_TC_HeadValidSlot,direct,83723.0,,,
+counter,CUTE_L0_TC_IssueFire,direct,91.0,,,
+counter,CUTE_L1_TC_Stall_Memory,direct,36537.0,,,
+counter,CUTE_L1_TC_Stall_Compute,direct,521.0,,,
+counter,CUTE_L1_TC_Stall_Dependency,direct,46574.0,,,
+counter,CUTE_L1_TC_Need_AML,direct,0.0,,,
+counter,CUTE_L1_TC_Need_BML,direct,0.0,,,
+counter,CUTE_L1_TC_Need_CML,direct,35089.0,,,
+counter,CUTE_L1_TC_Need_ADC,direct,38238.0,,,
+counter,CUTE_L1_TC_Need_BDC,direct,38238.0,,,
+counter,CUTE_L1_TC_Need_CDC,direct,38238.0,,,
+counter,CUTE_L1_TC_Block_AML,direct,0.0,,,
+counter,CUTE_L1_TC_Block_BML,direct,0.0,,,
+counter,CUTE_L1_TC_Block_CML,direct,26232.0,,,
+counter,CUTE_L1_TC_Block_ADC,direct,515.0,,,
+counter,CUTE_L1_TC_Block_BDC,direct,515.0,,,
+counter,CUTE_L1_TC_Block_CDC,direct,521.0,,,
+counter,CUTE_L2_SB_Block_Dep_SrcNotReady,direct,47095.0,,,
+counter,CUTE_L2_SB_Block_Dep_DestBusy,direct,0.0,,,
+counter,CUTE_L2_SB_Block_Dep_DestHasConsumers,direct,0.0,,,
+counter,CUTE_L2_SB_Block_Dep_CMLStoreConsumer,direct,0.0,,,
+counter,CUTE_L2_SB_Block_Res_AMLBusy,direct,0.0,,,
+counter,CUTE_L2_SB_Block_Res_BMLBusy,direct,0.0,,,
+counter,CUTE_L2_SB_Block_Res_CMLLoadBusy,direct,26232.0,,,
+counter,CUTE_L2_SB_Block_Res_CMLStoreBusy,direct,0.0,,,
+counter,CUTE_L2_SB_Block_Res_ComputeBusy,direct,0.0,,,
+counter,CUTE_L3_SB_Dep_SrcNotReady_By_AML,direct,6230.0,,,
+counter,CUTE_L3_SB_Dep_SrcNotReady_By_BML,direct,3183.0,,,
+counter,CUTE_L3_SB_Dep_SrcNotReady_By_CML,direct,37717.0,,,
+counter,CUTE_L3_SB_Dep_SrcNotReady_By_Compute,direct,9378.0,,,
+counter,CUTE_L3_SB_Dep_DestBusy_By_AML,direct,0.0,,,
+counter,CUTE_L3_SB_Dep_DestBusy_By_BML,direct,0.0,,,
+counter,CUTE_L3_SB_Dep_DestBusy_By_CML,direct,0.0,,,
+counter,CUTE_L3_SB_Dep_DestBusy_By_Compute,direct,0.0,,,
+counter,CUTE_L0_TC_Stall,derived,83632.0,CUTE_L0_TC_HeadValidSlot - CUTE_L0_TC_IssueFire,,
+counter,CUTE_L1_TC_Stall_Sum,derived,83632.0,CUTE_L1_TC_Stall_Memory + CUTE_L1_TC_Stall_Compute + CUTE_L1_TC_Stall_Dependency,,
+counter,CUTE_L2_Memory_Remain,derived,10305.0,CUTE_L1_TC_Stall_Memory - CUTE_L1_TC_Block_AML - CUTE_L1_TC_Block_BML - CUTE_L1_TC_Block_CML,,
+counter,CUTE_L2_SB_Block_Sum,derived,73327.0,CUTE_L2_SB_Block_Dep_SrcNotReady + CUTE_L2_SB_Block_Dep_DestBusy + CUTE_L2_SB_Block_Dep_DestHasConsumers + CUTE_L2_SB_Block_Dep_CMLStoreConsumer + CUTE_L2_SB_Block_Res_AMLBusy + CUTE_L2_SB_Block_Res_BMLBusy + CUTE_L2_SB_Block_Res_CMLLoadBusy + CUTE_L2_SB_Block_Res_CMLStoreBusy + CUTE_L2_SB_Block_Res_ComputeBusy,,
+counter,CUTE_L3_SB_Dep_SrcNotReady_By_Memory,derived,47130.0,CUTE_L3_SB_Dep_SrcNotReady_By_AML + CUTE_L3_SB_Dep_SrcNotReady_By_BML + CUTE_L3_SB_Dep_SrcNotReady_By_CML,,
+counter,CUTE_L3_SB_Dep_SrcNotReady_By_ComputeAgg,derived,9378.0,CUTE_L3_SB_Dep_SrcNotReady_By_Compute,,
+counter,CUTE_L3_SB_Dep_DestBusy_By_Memory,derived,0.0,CUTE_L3_SB_Dep_DestBusy_By_AML + CUTE_L3_SB_Dep_DestBusy_By_BML + CUTE_L3_SB_Dep_DestBusy_By_CML,,
+counter,CUTE_L3_SB_Dep_DestBusy_By_ComputeAgg,derived,0.0,CUTE_L3_SB_Dep_DestBusy_By_Compute,,
+ratio,CUTE_L1_TC_Stall_Memory,ratio,36537.0,,CUTE_L0_TC_Stall,0.43687822842930935
+ratio,CUTE_L1_TC_Stall_Compute,ratio,521.0,,CUTE_L0_TC_Stall,0.006229672852496652
+ratio,CUTE_L1_TC_Stall_Dependency,ratio,46574.0,,CUTE_L0_TC_Stall,0.556892098718194
+ratio,CUTE_L1_TC_Block_AML,ratio,0.0,,CUTE_L1_TC_Stall_Memory,0.0
+ratio,CUTE_L1_TC_Block_BML,ratio,0.0,,CUTE_L1_TC_Stall_Memory,0.0
+ratio,CUTE_L1_TC_Block_CML,ratio,26232.0,,CUTE_L1_TC_Stall_Memory,0.7179571393382052
+ratio,CUTE_L2_Memory_Remain,ratio,10305.0,,CUTE_L1_TC_Stall_Memory,0.2820428606617949
+ratio,CUTE_L1_TC_Block_ADC,ratio,515.0,,CUTE_L1_TC_Stall_Compute,0.9884836852207294
+ratio,CUTE_L1_TC_Block_BDC,ratio,515.0,,CUTE_L1_TC_Stall_Compute,0.9884836852207294
+ratio,CUTE_L1_TC_Block_CDC,ratio,521.0,,CUTE_L1_TC_Stall_Compute,1.0
+ratio,CUTE_L2_SB_Block_Dep_SrcNotReady,ratio,47095.0,,CUTE_L1_TC_Stall_Dependency,1.0111864989049684
+ratio,CUTE_L2_SB_Block_Dep_DestBusy,ratio,0.0,,CUTE_L1_TC_Stall_Dependency,0.0
+ratio,CUTE_L2_SB_Block_Dep_DestHasConsumers,ratio,0.0,,CUTE_L1_TC_Stall_Dependency,0.0
+ratio,CUTE_L2_SB_Block_Dep_CMLStoreConsumer,ratio,0.0,,CUTE_L1_TC_Stall_Dependency,0.0
+ratio,CUTE_L2_SB_Block_Res_AMLBusy,ratio,0.0,,CUTE_L1_TC_Stall_Dependency,0.0
+ratio,CUTE_L2_SB_Block_Res_BMLBusy,ratio,0.0,,CUTE_L1_TC_Stall_Dependency,0.0
+ratio,CUTE_L2_SB_Block_Res_CMLLoadBusy,ratio,26232.0,,CUTE_L1_TC_Stall_Dependency,0.5632327049426719
+ratio,CUTE_L2_SB_Block_Res_CMLStoreBusy,ratio,0.0,,CUTE_L1_TC_Stall_Dependency,0.0
+ratio,CUTE_L2_SB_Block_Res_ComputeBusy,ratio,0.0,,CUTE_L1_TC_Stall_Dependency,0.0
+ratio,CUTE_L3_SB_Dep_SrcNotReady_By_AML,ratio,6230.0,,CUTE_L2_SB_Block_Dep_SrcNotReady,0.13228580528718548
+ratio,CUTE_L3_SB_Dep_SrcNotReady_By_BML,ratio,3183.0,,CUTE_L2_SB_Block_Dep_SrcNotReady,0.06758679265314789
+ratio,CUTE_L3_SB_Dep_SrcNotReady_By_CML,ratio,37717.0,,CUTE_L2_SB_Block_Dep_SrcNotReady,0.8008705807410553
+ratio,CUTE_L3_SB_Dep_SrcNotReady_By_Compute,ratio,9378.0,,CUTE_L2_SB_Block_Dep_SrcNotReady,0.19912941925894467
