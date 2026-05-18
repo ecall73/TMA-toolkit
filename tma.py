@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
 from tma_apply import apply as apply_impl
-from tma_report import plt, run_report
+from tma_report import go, run_report
 
 
 def _tool_dir() -> Path:
@@ -46,8 +46,19 @@ def build_parser() -> argparse.ArgumentParser:
     rp.add_argument("--out-prefix", type=Path, help="Output prefix mode")
     rp.add_argument("--out-root", type=Path, default=_tool_dir() / "reports", help="Archive root when --out-prefix is omitted")
     rp.add_argument("--run-id", type=str, default=None, help="Archive run id; default is timestamp")
-    rp.add_argument("--backup-log", dest="backup_log", action="store_true", default=True, help="Backup input log in archive directory (default)")
-    rp.add_argument("--no-backup-log", dest="backup_log", action="store_false", help="Do not backup input log")
+    rp.add_argument(
+        "--backup-log",
+        dest="backup_log",
+        action="store_true",
+        default=True,
+        help="Compatibility flag (no-op in HTML/RPT/JSON flow)",
+    )
+    rp.add_argument(
+        "--no-backup-log",
+        dest="backup_log",
+        action="store_false",
+        help="Compatibility flag (no-op in HTML/RPT/JSON flow)",
+    )
     rp.add_argument("--strict", action="store_true")
 
     return p
@@ -60,8 +71,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             spec_path, _ = _resolve_preset(args.preset)
             return apply_impl(spec_path, args.dry_run, args.baseline_ref, args.repo_root)
         if args.cmd == "report":
-            if plt is None:
-                print("[ERROR] matplotlib is not installed. Please install it first:", file=sys.stderr)
+            if go is None:
+                print("[ERROR] plotly is not installed. Please install it first:", file=sys.stderr)
                 print("        uv sync --project tools/TMA-toolkit", file=sys.stderr)
                 return 2
             spec_path, preset_id = _resolve_preset(args.preset)
